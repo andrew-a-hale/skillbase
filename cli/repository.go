@@ -68,7 +68,7 @@ func NewGitRepository(url string) (*GitRepository, error) {
 
 // Clone downloads the Git repository to a temporary directory
 func (g *GitRepository) Clone(ctx context.Context) (string, CleanupFunc, error) {
-	tempDir, err := os.MkdirTemp("", "skills-clone-*")
+	tempDir, err := os.MkdirTemp("", "skillbase-clone-*")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}

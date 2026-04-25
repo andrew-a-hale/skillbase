@@ -1,6 +1,6 @@
 .PHONY: build test clean lint release install coverage
 
-BINARY_NAME=skills
+BINARY_NAME=skillbase
 GO=go
 GORELEASER=goreleaser
 

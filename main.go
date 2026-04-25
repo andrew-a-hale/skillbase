@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/andrew-a-hale/skills/cli"
+	"github.com/andrew-a-hale/skillbase/cli"
 )
 
 func main() {

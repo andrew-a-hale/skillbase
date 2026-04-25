@@ -2,7 +2,7 @@
 
 A lightweight CLI for managing AI agent skills across projects.
 
-Skillbase fetches skill definitions from Git repositories and links them into agent scopes (e.g., `.claude/skills/`, `.agents/skills/`), letting you share and version-control your agent capabilities separately from any single project.
+Skillbase fetches skill definitions from Git repositories and links them into agent scopes (e.g., `.claude/skillbase/`, `.agents/skillbase/`), letting you share and version-control your agent capabilities separately from any single project.
 
 ---
 
@@ -25,10 +25,10 @@ Download from the [releases page](https://github.com/andrew-a-hale/skillbase/rel
 Set your default skills repository:
 
 ```bash
-export SKILLS_DEFAULT_REPO="https://github.com/your-org/skills"
+export SKILLBASE_DEFAULT_REPO="https://github.com/your-org/skills"
 ```
 
-> **Required:** `SKILLS_DEFAULT_REPO` must be set for commands that interact with a repository (`find`, `get`, `update`).
+> **Required:** `SKILLBASE_DEFAULT_REPO` must be set for commands that interact with a repository (`find`, `get`, `update`).
 
 List available skills:
 
@@ -113,7 +113,7 @@ skillbase rm -a agents my-skill
 ## How it works
 
 1. **Skills repository** — A Git repo containing directories with `SKILL.md` files.
-2. **Install** — `skillbase` clones the repo, copies the skill to `~/.skills/<name>/`, and creates symlinks in the detected agent scope directories.
+2. **Install** — `skillbase` clones the repo, copies the skill to `~/.skillbase/<name>/`, and creates symlinks in the detected agent scope directories.
 3. **Detect agents** — Automatically finds `.claude/` or `.agents/` directories in the current project (or home directory for `-g`).
 
 ### Skill repository layout

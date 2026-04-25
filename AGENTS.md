@@ -20,9 +20,9 @@ A small CLI with three packages:
 
 ## Key Behaviors
 
-- `SKILLS_DEFAULT_REPO` environment variable is **required**. There is no hardcoded fallback.
-- `get` copies skills to `~/.skills/<name>/` and symlinks into agent scope directories.
-- `remove -g` deletes from `~/.skills/` and removes all symlinks.
+- `SKILLBASE_DEFAULT_REPO` environment variable is **required**. There is no hardcoded fallback.
+- `get` copies skills to `~/.skillbase/<name>/` and symlinks into agent scope directories.
+- `remove -g` deletes from `~/.skillbase/` and removes all symlinks.
 - `remove` (without `-g`) only removes symlinks from the project scope.
 - `update` re-runs `get` for an installed skill.
 

@@ -45,7 +45,7 @@ func TestFileSystemScopeResolverResolve(t *testing.T) {
 	tmpDir := t.TempDir()
 	resolver := &FileSystemScopeResolver{home: tmpDir, cwd: tmpDir}
 
-	if err := os.MkdirAll(filepath.Join(tmpDir, ".claude", "skills"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".claude", "skillbase"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 
@@ -60,7 +60,7 @@ func TestFileSystemScopeResolverResolve(t *testing.T) {
 		if targets[0].Agent != "claude" {
 			t.Fatalf("agent mismatch: got %q", targets[0].Agent)
 		}
-		want := filepath.Join(tmpDir, ".claude", "skills")
+		want := filepath.Join(tmpDir, ".claude", "skillbase")
 		if targets[0].Path != want {
 			t.Fatalf("path mismatch: got %q, want %q", targets[0].Path, want)
 		}
@@ -71,7 +71,7 @@ func TestFileSystemScopeResolverResolve(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		want := filepath.Join(tmpDir, ".claude", "skills")
+		want := filepath.Join(tmpDir, ".claude", "skillbase")
 		if targets[0].Path != want {
 			t.Fatalf("path mismatch: got %q, want %q", targets[0].Path, want)
 		}

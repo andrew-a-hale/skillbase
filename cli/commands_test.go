@@ -9,7 +9,7 @@ import (
 
 func TestGetDefaultRepo(t *testing.T) {
 	t.Run("env var set", func(t *testing.T) {
-		t.Setenv("SKILLS_DEFAULT_REPO", "https://example.com/repo")
+		t.Setenv("SKILLBASE_DEFAULT_REPO", "https://example.com/repo")
 		repo, err := getDefaultRepo()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -20,12 +20,12 @@ func TestGetDefaultRepo(t *testing.T) {
 	})
 
 	t.Run("env var missing", func(t *testing.T) {
-		os.Unsetenv("SKILLS_DEFAULT_REPO")
+		_ = os.Unsetenv("SKILLBASE_DEFAULT_REPO")
 		_, err := getDefaultRepo()
 		if err == nil {
 			t.Fatal("expected error when env var is missing")
 		}
-		if !strings.Contains(err.Error(), "SKILLS_DEFAULT_REPO") {
+		if !strings.Contains(err.Error(), "SKILLBASE_DEFAULT_REPO") {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -33,9 +33,9 @@ func TestGetDefaultRepo(t *testing.T) {
 
 func TestParseRepoURL(t *testing.T) {
 	tests := []struct {
-		input     string
-		wantRepo  string
-		wantPath  string
+		input    string
+		wantRepo string
+		wantPath string
 	}{
 		{"https://github.com/user/repo", "https://github.com/user/repo", ""},
 		{"https://github.com/user/repo/skill/path", "https://github.com/user/repo", "skill/path"},
@@ -59,19 +59,19 @@ func TestParseRepoURL(t *testing.T) {
 }
 
 func TestDispatchHelp(t *testing.T) {
-	if err := Dispatch([]string{"skills", "help"}); err != nil {
+	if err := Dispatch([]string{"skillbase", "help"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
 func TestDispatchUnknown(t *testing.T) {
-	if err := Dispatch([]string{"skills", "foobar"}); err == nil {
+	if err := Dispatch([]string{"skillbase", "foobar"}); err == nil {
 		t.Fatal("expected error for unknown command")
 	}
 }
 
 func TestDispatchNoArgs(t *testing.T) {
-	if err := Dispatch([]string{"skills"}); err != nil {
+	if err := Dispatch([]string{"skillbase"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -79,11 +79,11 @@ func TestDispatchNoArgs(t *testing.T) {
 func TestListSkillsGlobal(t *testing.T) {
 	t.Run("global empty", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		oldPath := SKILLS_PATH
-		SKILLS_PATH = filepath.Join(tmpDir, ".skills")
-		defer func() { SKILLS_PATH = oldPath }()
+		oldPath := SKILLBASE_PATH
+		SKILLBASE_PATH = filepath.Join(tmpDir, ".skillbase")
+		defer func() { SKILLBASE_PATH = oldPath }()
 
-		if err := os.MkdirAll(SKILLS_PATH, 0o755); err != nil {
+		if err := os.MkdirAll(SKILLBASE_PATH, 0o755); err != nil {
 			t.Fatalf("mkdir: %v", err)
 		}
 
@@ -94,11 +94,11 @@ func TestListSkillsGlobal(t *testing.T) {
 
 	t.Run("global with skills", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		oldPath := SKILLS_PATH
-		SKILLS_PATH = filepath.Join(tmpDir, ".skills")
-		defer func() { SKILLS_PATH = oldPath }()
+		oldPath := SKILLBASE_PATH
+		SKILLBASE_PATH = filepath.Join(tmpDir, ".skillbase")
+		defer func() { SKILLBASE_PATH = oldPath }()
 
-		skillDir := filepath.Join(SKILLS_PATH, "my-skill")
+		skillDir := filepath.Join(SKILLBASE_PATH, "my-skill")
 		if err := os.MkdirAll(skillDir, 0o755); err != nil {
 			t.Fatalf("mkdir: %v", err)
 		}

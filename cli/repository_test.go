@@ -43,7 +43,7 @@ func TestGitRepositoryClone(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		defer cleanup()
+		defer func() { _ = cleanup() }()
 
 		if len(exec.calls) != 1 {
 			t.Fatalf("expected 1 call, got %d", len(exec.calls))

@@ -9,7 +9,7 @@ import (
 // InstallationTarget represents a location where a skill should be linked
 type InstallationTarget struct {
 	Agent    string // "claude" or "agents"
-	Path     string // full path to the skills directory
+	Path     string // full path to the skillbase directory
 	IsGlobal bool
 }
 
@@ -115,7 +115,7 @@ func (f *FileSystemScopeResolver) selectAgents(global bool, agentFilter string) 
 
 func (f *FileSystemScopeResolver) getAgentPath(agent string, global bool) string {
 	if global {
-		return filepath.Join(f.home, "."+agent, "skills")
+		return filepath.Join(f.home, "."+agent, "skillbase")
 	}
-	return filepath.Join(f.cwd, "."+agent, "skills")
+	return filepath.Join(f.cwd, "."+agent, "skillbase")
 }

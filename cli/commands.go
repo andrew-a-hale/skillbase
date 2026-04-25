@@ -10,20 +10,18 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/andrew-a-hale/skills/internal/fsutil"
+	"github.com/andrew-a-hale/skillbase/internal/fsutil"
 )
 
-const APP = "skills"
-
 var (
-	HOME        = os.Getenv("HOME")
-	SKILLS_PATH = filepath.Join(HOME, ".skills")
+	HOME           = os.Getenv("HOME")
+	SKILLBASE_PATH = filepath.Join(HOME, ".skillbase")
 )
 
 func getDefaultRepo() (string, error) {
-	repo := os.Getenv("SKILLS_DEFAULT_REPO")
+	repo := os.Getenv("SKILLBASE_DEFAULT_REPO")
 	if repo == "" {
-		return "", fmt.Errorf("SKILLS_DEFAULT_REPO environment variable is required")
+		return "", fmt.Errorf("SKILLBASE_DEFAULT_REPO environment variable is required")
 	}
 	return repo, nil
 }
@@ -145,7 +143,7 @@ func help(message string) {
 	if message != "" {
 		fmt.Printf("%s\n\n", message)
 	}
-	fmt.Printf(`%s - Manage agent skills
+	fmt.Printf(`skillbase - Manage agent skills
 
 Commands:
   help              Print this help message
@@ -161,14 +159,14 @@ Commands:
     -g              Remove from global storage
   update <name>     Update existing skill
 
-Default repository: set via SKILLS_DEFAULT_REPO environment variable
-`, APP)
+Default repository: set via SKILLBASE_DEFAULT_REPO environment variable
+`)
 }
 
 func listSkills(global bool) error {
 	var path string
 	if global {
-		path = SKILLS_PATH
+		path = SKILLBASE_PATH
 	} else {
 		path = "."
 	}
@@ -239,10 +237,10 @@ func findSkills(repo Repository, repoURL string, filter string) error {
 }
 
 func installSkill(srcDir, skillName string) error {
-	if err := os.MkdirAll(SKILLS_PATH, 0o755); err != nil {
+	if err := os.MkdirAll(SKILLBASE_PATH, 0o755); err != nil {
 		return err
 	}
-	dstDir := filepath.Join(SKILLS_PATH, skillName)
+	dstDir := filepath.Join(SKILLBASE_PATH, skillName)
 	if err := os.RemoveAll(dstDir); err != nil {
 		return err
 	}
@@ -250,7 +248,7 @@ func installSkill(srcDir, skillName string) error {
 }
 
 func linkSkill(resolver ScopeResolver, skillName string, agents []string, global bool) error {
-	storageDir := filepath.Join(SKILLS_PATH, skillName)
+	storageDir := filepath.Join(SKILLBASE_PATH, skillName)
 
 	for _, agent := range agents {
 		targets, err := resolver.Resolve(skillName, global, agent)
@@ -378,7 +376,7 @@ func resolveTargetAgents(resolver ScopeResolver, agent string, global bool) ([]s
 
 func removeSkill(resolver ScopeResolver, skillName, agent string, global bool) error {
 	if global {
-		storageDir := filepath.Join(SKILLS_PATH, skillName)
+		storageDir := filepath.Join(SKILLBASE_PATH, skillName)
 		if _, err := os.Stat(storageDir); os.IsNotExist(err) {
 			fmt.Printf("Skill %q not found\n", skillName)
 			return nil
@@ -421,7 +419,7 @@ func removeSkill(resolver ScopeResolver, skillName, agent string, global bool) e
 }
 
 func updateSkill(repo Repository, resolver ScopeResolver, skillName string) error {
-	storageDir := filepath.Join(SKILLS_PATH, skillName)
+	storageDir := filepath.Join(SKILLBASE_PATH, skillName)
 	if _, err := os.Stat(storageDir); os.IsNotExist(err) {
 		return fmt.Errorf("skill %q not installed", skillName)
 	}
