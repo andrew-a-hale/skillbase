@@ -2,7 +2,7 @@
 
 A lightweight CLI for managing AI agent skills across projects.
 
-Skillbase fetches skill definitions from Git repositories and links them into agent scopes (e.g., `.claude/skillbase/`, `.agents/skillbase/`), letting you share and version-control your agent capabilities separately from any single project.
+Skillbase fetches skill definitions from Git repositories and links them into agent scopes (e.g., `.claude/skills/`, `.agents/skills/`), letting you share and version-control your agent capabilities separately from any single project.
 
 ---
 

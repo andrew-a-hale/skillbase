@@ -115,7 +115,7 @@ func (f *FileSystemScopeResolver) selectAgents(global bool, agentFilter string) 
 
 func (f *FileSystemScopeResolver) getAgentPath(agent string, global bool) string {
 	if global {
-		return filepath.Join(f.home, "."+agent, "skillbase")
+		return filepath.Join(f.home, "."+agent, "skills")
 	}
-	return filepath.Join(f.cwd, "."+agent, "skillbase")
+	return filepath.Join(f.cwd, "."+agent, "skills")
 }
