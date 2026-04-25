@@ -79,7 +79,7 @@ func (f *FileSystemScopeResolver) dirExists(path string) bool {
 }
 
 // Resolve returns installation targets based on scope and filter
-func (f *FileSystemScopeResolver) Resolve(skillName string, global bool, agentFilter string) ([]InstallationTarget, error) {
+func (f *FileSystemScopeResolver) Resolve(_ string, global bool, agentFilter string) ([]InstallationTarget, error) {
 	agents := f.selectAgents(global, agentFilter)
 
 	if len(agents) == 0 {
@@ -90,7 +90,7 @@ func (f *FileSystemScopeResolver) Resolve(skillName string, global bool, agentFi
 		return nil, fmt.Errorf("no %s agent scopes found", scope)
 	}
 
-	var targets []InstallationTarget
+	targets := make([]InstallationTarget, 0, len(agents))
 	for _, agent := range agents {
 		path := f.getAgentPath(agent, global)
 		targets = append(targets, InstallationTarget{

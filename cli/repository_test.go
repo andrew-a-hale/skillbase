@@ -16,7 +16,7 @@ type fakeExecutor struct {
 	calls  [][]string
 }
 
-func (f *fakeExecutor) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+func (f *fakeExecutor) Run(_ context.Context, name string, args ...string) ([]byte, error) {
 	f.calls = append(f.calls, append([]string{name}, args...))
 	return f.output, f.err
 }
@@ -39,7 +39,7 @@ func TestGitRepositoryClone(t *testing.T) {
 		exec := &fakeExecutor{output: []byte("ok")}
 		repo := &GitRepository{url: "https://example.com/repo", executor: exec}
 
-		path, cleanup, err := repo.Clone(context.Background())
+		path, cleanup, err := repo.Clone(t.Context())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -60,7 +60,7 @@ func TestGitRepositoryClone(t *testing.T) {
 		exec := &fakeExecutor{err: errors.New("clone failed")}
 		repo := &GitRepository{url: "https://example.com/repo", executor: exec}
 
-		_, _, err := repo.Clone(context.Background())
+		_, _, err := repo.Clone(t.Context())
 		if err == nil {
 			t.Fatal("expected error")
 		}
@@ -134,7 +134,8 @@ func TestGetSkill(t *testing.T) {
 	if err := os.MkdirAll(skillDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("---\ndescription: my desc\n---\n"), 0o644); err != nil {
+	skillFile := filepath.Join(skillDir, "SKILL.md")
+	if err := os.WriteFile(skillFile, []byte("---\ndescription: my desc\n---\n"), 0o644); err != nil {
 		t.Fatalf("write skill: %v", err)
 	}
 

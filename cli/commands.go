@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	HOME           = os.Getenv("HOME")
-	SKILLBASE_PATH = filepath.Join(HOME, ".skillbase")
+	homeDir       = os.Getenv("HOME")
+	skillbasePath = filepath.Join(homeDir, ".skillbase")
 )
 
 func getDefaultRepo() (string, error) {
@@ -166,7 +166,7 @@ Default repository: set via SKILLBASE_DEFAULT_REPO environment variable
 func listSkills(global bool) error {
 	var path string
 	if global {
-		path = SKILLBASE_PATH
+		path = skillbasePath
 	} else {
 		path = "."
 	}
@@ -189,7 +189,7 @@ func listSkills(global bool) error {
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("%v: %v", ErrSkillNotFound, err)
+		return fmt.Errorf("%w: %w", ErrSkillNotFound, err)
 	}
 
 	if !found {
@@ -205,13 +205,13 @@ func findSkills(repo Repository, repoURL string, filter string) error {
 
 	clonePath, cleanup, err := repo.Clone(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to clone: %v", err)
+		return fmt.Errorf("failed to clone: %w", err)
 	}
 	defer func() { _ = cleanup() }()
 
 	skills, err := repo.ListSkills(clonePath)
 	if err != nil {
-		return fmt.Errorf("failed to list skills: %v", err)
+		return fmt.Errorf("failed to list skills: %w", err)
 	}
 
 	if len(skills) == 0 {
@@ -237,10 +237,10 @@ func findSkills(repo Repository, repoURL string, filter string) error {
 }
 
 func installSkill(srcDir, skillName string) error {
-	if err := os.MkdirAll(SKILLBASE_PATH, 0o755); err != nil {
+	if err := os.MkdirAll(skillbasePath, 0o755); err != nil {
 		return err
 	}
-	dstDir := filepath.Join(SKILLBASE_PATH, skillName)
+	dstDir := filepath.Join(skillbasePath, skillName)
 	if err := os.RemoveAll(dstDir); err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func installSkill(srcDir, skillName string) error {
 }
 
 func linkSkill(resolver ScopeResolver, skillName string, agents []string, global bool) error {
-	storageDir := filepath.Join(SKILLBASE_PATH, skillName)
+	storageDir := filepath.Join(skillbasePath, skillName)
 
 	for _, agent := range agents {
 		targets, err := resolver.Resolve(skillName, global, agent)
@@ -267,7 +267,7 @@ func linkSkill(resolver ScopeResolver, skillName string, agents []string, global
 				relStorage = storageDir
 			}
 			if err := os.Symlink(relStorage, linkPath); err != nil {
-				return fmt.Errorf("failed to link %s: %v", target.Agent, err)
+				return fmt.Errorf("failed to link %s: %w", target.Agent, err)
 			}
 			scopeType := "project"
 			if global {
@@ -302,7 +302,7 @@ func getSkill(repo Repository, resolver ScopeResolver, skillPath, agent string, 
 
 	clonePath, cleanup, err := repo.Clone(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to clone: %v", err)
+		return fmt.Errorf("failed to clone: %w", err)
 	}
 	defer func() { _ = cleanup() }()
 
@@ -330,20 +330,20 @@ func fetchSkillsFromRepo(repo Repository, clonePath, skillPath string) ([]Skill,
 	if skillPath == "" {
 		skills, err := repo.ListSkills(clonePath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to list skills: %v", err)
+			return nil, fmt.Errorf("failed to list skills: %w", err)
 		}
 		return skills, nil
 	}
 
 	skill, err := repo.GetSkill(clonePath, skillPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get skill: %v", err)
+		return nil, fmt.Errorf("failed to get skill: %w", err)
 	}
 	return []Skill{skill}, nil
 }
 
 func installFetchedSkills(skills []Skill, clonePath string) []string {
-	var skillNames []string
+	skillNames := make([]string, 0, len(skills))
 	for _, skill := range skills {
 		skillDir := filepath.Join(clonePath, skill.Path)
 		if err := installSkill(skillDir, skill.Name); err != nil {
@@ -376,7 +376,7 @@ func resolveTargetAgents(resolver ScopeResolver, agent string, global bool) ([]s
 
 func removeSkill(resolver ScopeResolver, skillName, agent string, global bool) error {
 	if global {
-		storageDir := filepath.Join(SKILLBASE_PATH, skillName)
+		storageDir := filepath.Join(skillbasePath, skillName)
 		if _, err := os.Stat(storageDir); os.IsNotExist(err) {
 			fmt.Printf("Skill %q not found\n", skillName)
 			return nil
@@ -419,7 +419,7 @@ func removeSkill(resolver ScopeResolver, skillName, agent string, global bool) e
 }
 
 func updateSkill(repo Repository, resolver ScopeResolver, skillName string) error {
-	storageDir := filepath.Join(SKILLBASE_PATH, skillName)
+	storageDir := filepath.Join(skillbasePath, skillName)
 	if _, err := os.Stat(storageDir); os.IsNotExist(err) {
 		return fmt.Errorf("skill %q not installed", skillName)
 	}

@@ -1,0 +1,44 @@
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+
+linters:
+  enable-all: true
+  disable:
+    # Too noisy / pedantic for a small CLI
+    - wsl
+    - nlreturn
+    - paralleltest
+    - testpackage
+    - mnd
+    - err113
+    - depguard
+    - gocognit
+    - nonamedreturns
+    - nestif
+    - perfsprint
+    - godot
+    - forbidigo
+    - varnamelen
+    - wrapcheck
+    - exhaustruct
+    - gochecknoglobals
+    - cyclop
+    - funlen
+    # Deprecated
+    - tenv
+    - exportloopref
+
+linters-settings:
+  gofmt:
+    simplify: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    # gosec G306 in test files is fine
+    - path: _test\.go
+      linters:
+        - gosec

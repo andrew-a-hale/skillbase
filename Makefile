@@ -21,11 +21,11 @@ clean:
 	rm -f $(BINARY_NAME)
 	rm -f coverage.txt coverage.html
 
-install:
+install: test
 	$(GO) install .
 
-release:
+release: install
 	$(GORELEASER) release --clean
 
-release-snapshot:
+release-snapshot: install
 	$(GORELEASER) release --snapshot --clean

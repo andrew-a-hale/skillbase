@@ -80,9 +80,9 @@ func (g *GitRepository) Clone(ctx context.Context) (string, CleanupFunc, error) 
 	output, err := g.executor.Run(ctx, "git", "clone", "--depth", "1", g.url, tempDir)
 	if err != nil {
 		if err := cleanup(); err != nil {
-			return "", nil, fmt.Errorf("%w: %v", ErrCleanupFailed, err)
+			return "", nil, fmt.Errorf("%w: %w", ErrCleanupFailed, err)
 		}
-		return "", nil, fmt.Errorf("%w: %v (output: %s)", ErrCloneFailed, err, string(output))
+		return "", nil, fmt.Errorf("%w: %w (output: %s)", ErrCloneFailed, err, string(output))
 	}
 
 	return tempDir, cleanup, nil
