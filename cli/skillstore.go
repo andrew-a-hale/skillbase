@@ -183,9 +183,13 @@ func (s *FileSystemSkillStore) ListInstalled() (project []InstalledSkill, global
 			if existing, ok := projectMap[name]; ok {
 				existing.Agents = append(existing.Agents, agent)
 			} else {
-				target, _ := os.Readlink(filepath.Join(skillDir, name))
+				linkPath := filepath.Join(skillDir, name)
+				target, _ := os.Readlink(linkPath)
 				desc := ""
 				if target != "" {
+					if !filepath.IsAbs(target) {
+						target = filepath.Join(skillDir, target)
+					}
 					skillFile := filepath.Join(target, "SKILL.md")
 					if data, err := os.ReadFile(skillFile); err == nil {
 						fm, _ := skill.ParseFrontmatter(bytes.NewReader(data))

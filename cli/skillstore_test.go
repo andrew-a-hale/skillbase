@@ -133,6 +133,41 @@ func TestSkillStoreRemove(t *testing.T) {
 	}
 }
 
+func TestSkillStoreListInstalled_ProjectScopeDescription(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	skillbase := filepath.Join(tmpDir, ".skillbase")
+	agentDir := filepath.Join(tmpDir, ".claude", "skills")
+
+	if err := os.MkdirAll(agentDir, 0o755); err != nil {
+		t.Fatalf("mkdir agent: %v", err)
+	}
+
+	resolver, err := NewFileSystemScopeResolver(tmpDir, tmpDir)
+	if err != nil {
+		t.Fatalf("resolver: %v", err)
+	}
+	store := NewFileSystemSkillStore(resolver, skillbase)
+
+	srcDir := filepath.Join(tmpDir, "src", "my-skill")
+	os.MkdirAll(srcDir, 0o755)
+	os.WriteFile(filepath.Join(srcDir, "SKILL.md"), []byte("---\ndescription: hello world\n---\n"), 0o644)
+	store.Install("my-skill", srcDir)
+	store.Link("my-skill", "", false)
+
+	project, _, err := store.ListInstalled()
+	if err != nil {
+		t.Fatalf("list installed: %v", err)
+	}
+
+	if len(project) != 1 {
+		t.Fatalf("expected 1 project skill, got %d", len(project))
+	}
+	if project[0].Description != "hello world" {
+		t.Fatalf("expected description %q, got %q", "hello world", project[0].Description)
+	}
+}
+
 type fakeResolver struct{}
 
 func (f *fakeResolver) DetectAgents(global bool) []string { return nil }
