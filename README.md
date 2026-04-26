@@ -1,6 +1,6 @@
 # skillbase
 
-A lightweight CLI for managing AI agent skills across projects.
+A lightweight CLI / TUI for managing AI agent skills across projects.
 
 Skillbase fetches skill definitions from Git repositories and links them into agent scopes (e.g., `.claude/skills/`, `.agents/skills/`), letting you share and version-control your agent capabilities separately from any single project.
 
@@ -51,21 +51,24 @@ skillbase get -g my-skill
 List installed skills:
 
 ```bash
-skillbase ls          # project scope
-skillbase ls -g       # global scope
+skillbase ls
 ```
 
 Remove a skill:
 
 ```bash
+skillbase rm
 skillbase rm my-skill
 ```
 
 Update a skill:
 
 ```bash
+skillbase update
 skillbase update my-skill
 ```
+
+> **Tip:** Running `get`, `rm`, or `update` without arguments opens an interactive TUI where you can browse, select, and confirm actions with the keyboard or mouse.
 
 ---
 
@@ -76,9 +79,8 @@ skillbase - Manage agent skills
 
 Commands:
   help              Print this help message
-  list, ls          List installed skills
-    -g              List global skills
-  find [filter]     Find available skills in repository
+  list, ls          List installed skills (interactive)
+  find [filter]     Find available skills in repository (interactive)
   get [skill|url]   Download skill(s) and link to agent scope
     -p path         Skill path within repository
     -a agent        Target agent (claude|agents)
@@ -88,6 +90,26 @@ Commands:
     -g              Remove from global storage
   update <name>     Update existing skill
 ```
+
+### Interactive TUI
+
+When a command is run without the required arguments, **skillbase** launches an interactive terminal UI powered by [Bubble Tea](https://github.com/charmbracelet/bubbletea):
+
+- **`list` / `find`** — Always interactive. Browse with `j`/`↓` / `k`/`↑` (or the mouse wheel). `find` lets you type to filter in real time.
+- **`get`** — Interactive when no skill name is given or when the target scope can't be determined. Walks through selecting a skill, choosing project vs. global scope, picking agents, and confirming.
+- **`remove`** — Interactive when no skill name is given. Choose project or global scope, select one or more skills (space to toggle), and confirm.
+- **`update`** — Interactive when no skill name is given. Pick from globally installed skills.
+
+**Key bindings**
+
+| Key | Action |
+|---|---|
+| `j` / `↓` | Move down |
+| `k` / `↑` | Move up |
+| `l` / `→` / `enter` | Confirm / next step |
+| `h` / `←` | Go back (multi-step wizards) |
+| `space` | Toggle selection |
+| `q` / `esc` / `ctrl+c` | Quit |
 
 ### Install from a specific repository
 
