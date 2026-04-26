@@ -250,5 +250,3 @@ func (s *FileSystemSkillStore) resolveTargetAgents(agent string, global bool) ([
 	}
 	return agents, nil
 }
-
-

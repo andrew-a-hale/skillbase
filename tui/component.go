@@ -8,7 +8,7 @@ type list struct {
 	cursor int
 }
 
-func (l *list) up(count int) {
+func (l *list) up(_ int) {
 	if l.cursor > 0 {
 		l.cursor--
 	}
@@ -25,10 +25,10 @@ func (l *list) reset() {
 }
 
 func (l *list) handleMouse(msg tea.MouseMsg, count int) {
-	switch msg.Type {
-	case tea.MouseWheelDown:
+	switch msg.Button {
+	case tea.MouseButtonWheelDown:
 		l.down(count)
-	case tea.MouseWheelUp:
+	case tea.MouseButtonWheelUp:
 		l.up(count)
 	}
 }

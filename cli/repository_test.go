@@ -163,5 +163,3 @@ func TestGetSkillNotFound(t *testing.T) {
 		t.Fatalf("expected ErrSkillNotFound, got: %v", err)
 	}
 }
-
-

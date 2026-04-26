@@ -122,10 +122,7 @@ func (m *ListModel) View() string {
 func (m *ListModel) renderSkillLine(selected bool, name, agents, desc string) string {
 	if selected {
 		header := name + MutedStyle.Render(agents)
-		wrapWidth := m.width - 4 // 2 padding + "> " prefix
-		if wrapWidth < 10 {
-			wrapWidth = 10
-		}
+		wrapWidth := max(m.width-4, 10)
 		wrappedDesc := wordwrap.String(desc, wrapWidth)
 		lines := strings.Split(wrappedDesc, "\n")
 
@@ -140,17 +137,11 @@ func (m *ListModel) renderSkillLine(selected bool, name, agents, desc string) st
 	}
 
 	// Not selected: truncate description to fit on one line
-	available := m.width - 6 // 4 padding + "  " prefix
-	if available < 10 {
-		available = 10
-	}
+	available := max(m.width-6, 10)
 	header := name + MutedStyle.Render(agents)
 	prefix := header + "  "
 	prefixWidth := lipgloss.Width(prefix)
-	descWidth := available - prefixWidth
-	if descWidth < 3 {
-		descWidth = 3
-	}
+	descWidth := max(available-prefixWidth, 3)
 	truncatedDesc := truncate.StringWithTail(desc, uint(descWidth), "...")
 	return ItemStyle.Render("  "+prefix+MutedStyle.Render(truncatedDesc)) + "\n"
 }

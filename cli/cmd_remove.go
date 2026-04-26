@@ -4,8 +4,8 @@ import (
 	"flag"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/andrew-a-hale/skillbase/tui"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func cmdRemove(args []string) error {

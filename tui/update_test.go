@@ -35,5 +35,3 @@ func TestUpdateModelQuit(t *testing.T) {
 		t.Fatal("expected cancelled")
 	}
 }
-
-

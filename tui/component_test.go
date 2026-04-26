@@ -57,11 +57,11 @@ func TestListReset(t *testing.T) {
 
 func TestListHandleMouse(t *testing.T) {
 	l := &list{cursor: 1}
-	l.handleMouse(tea.MouseMsg{Type: tea.MouseWheelDown}, 3)
+	l.handleMouse(tea.MouseMsg{Button: tea.MouseButtonWheelDown}, 3)
 	if l.cursor != 2 {
 		t.Fatalf("expected cursor 2, got %d", l.cursor)
 	}
-	l.handleMouse(tea.MouseMsg{Type: tea.MouseWheelUp}, 3)
+	l.handleMouse(tea.MouseMsg{Button: tea.MouseButtonWheelUp}, 2)
 	if l.cursor != 1 {
 		t.Fatalf("expected cursor 1, got %d", l.cursor)
 	}

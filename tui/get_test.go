@@ -187,5 +187,3 @@ func TestGetModelQuit(t *testing.T) {
 		t.Fatal("expected cancelled")
 	}
 }
-
-

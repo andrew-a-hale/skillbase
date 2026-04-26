@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/andrew-a-hale/skillbase/tui"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func cmdUpdate(args []string) error {

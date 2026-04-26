@@ -1,6 +1,10 @@
 package tui
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"slices"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 type KeyMap struct {
 	Up      []string
@@ -25,10 +29,5 @@ var DefaultKeyMap = KeyMap{
 }
 
 func IsKey(msg tea.KeyMsg, keys []string) bool {
-	for _, k := range keys {
-		if msg.String() == k {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(keys, msg.String())
 }

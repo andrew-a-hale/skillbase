@@ -3,8 +3,8 @@ package cli
 import (
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/andrew-a-hale/skillbase/tui"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func cmdList(args []string) error {
