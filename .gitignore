@@ -27,6 +27,9 @@ go.work
 *.swo
 *~
 
+# skills
+.agents/
+
 # OS
 .DS_Store
 Thumbs.db
