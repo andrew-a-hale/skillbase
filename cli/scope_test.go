@@ -88,14 +88,14 @@ func TestFileSystemScopeResolverResolve(t *testing.T) {
 }
 
 func TestNewFileSystemScopeResolver(t *testing.T) {
-	resolver, err := NewFileSystemScopeResolver()
+	resolver, err := NewFileSystemScopeResolver("/home/test", "/tmp/test")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resolver.home == "" {
-		t.Fatal("expected home to be set")
+	if resolver.home != "/home/test" {
+		t.Fatalf("expected home /home/test, got %q", resolver.home)
 	}
-	if resolver.cwd == "" {
-		t.Fatal("expected cwd to be set")
+	if resolver.cwd != "/tmp/test" {
+		t.Fatalf("expected cwd /tmp/test, got %q", resolver.cwd)
 	}
 }

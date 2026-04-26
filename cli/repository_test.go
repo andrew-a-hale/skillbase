@@ -164,45 +164,4 @@ func TestGetSkillNotFound(t *testing.T) {
 	}
 }
 
-func TestExtractSkillDescription(t *testing.T) {
-	tests := []struct {
-		name     string
-		content  string
-		expected string
-	}{
-		{
-			name:     "frontmatter description",
-			content:  "---\ndescription: hello world\n---\n",
-			expected: "hello world",
-		},
-		{
-			name:     "no description",
-			content:  "---\nname: foo\n---\n",
-			expected: "",
-		},
-		{
-			name:     "no frontmatter",
-			content:  "# Hello\n",
-			expected: "",
-		},
-		{
-			name:     "case insensitive",
-			content:  "---\nDESCRIPTION: UPPER\n---\n",
-			expected: "UPPER",
-		},
-	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
-			path := filepath.Join(tmpDir, "SKILL.md")
-			if err := os.WriteFile(path, []byte(tt.content), 0o644); err != nil {
-				t.Fatalf("write file: %v", err)
-			}
-			got := extractSkillDescription(path)
-			if got != tt.expected {
-				t.Fatalf("got %q, want %q", got, tt.expected)
-			}
-		})
-	}
-}

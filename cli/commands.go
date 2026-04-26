@@ -2,15 +2,14 @@ package cli
 
 import (
 	"context"
-	"flag"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
-	"github.com/andrew-a-hale/skillbase/internal/fsutil"
+	"github.com/andrew-a-hale/skillbase/tui"
 )
 
 var (
@@ -26,257 +25,47 @@ func getDefaultRepo() (string, error) {
 	return repo, nil
 }
 
+func toTuiSkills(skills []InstalledSkill, scope string) []tui.SkillInfo {
+	var result []tui.SkillInfo
+	for _, s := range skills {
+		result = append(result, tui.SkillInfo{
+			Name:        s.Name,
+			Description: s.Description,
+			Scope:       scope,
+			Agents:      s.Agents,
+		})
+	}
+	return result
+}
+
+// Command is a subcommand handler.
+type Command func([]string) error
+
+var commands = map[string]Command{
+	"help":   cmdHelp,
+	"list":   cmdList,
+	"ls":     cmdList,
+	"find":   cmdFind,
+	"get":    cmdGet,
+	"remove": cmdRemove,
+	"rm":     cmdRemove,
+	"update": cmdUpdate,
+}
+
 func Dispatch(args []string) error {
 	if len(args) < 2 {
-		help("")
-		return nil
+		return cmdHelp(nil)
 	}
 
 	name := args[1]
 	cmdArgs := args[2:]
 
-	switch name {
-	case "help":
-		message := ""
-		if len(cmdArgs) > 0 {
-			message = cmdArgs[0]
-		}
-		help(message)
-		return nil
-	case "list", "ls":
-		fs := flag.NewFlagSet("list", flag.ContinueOnError)
-		global := fs.Bool("g", false, "list global skills")
-		if err := fs.Parse(cmdArgs); err != nil {
-			return err
-		}
-		return listSkills(*global)
-	case "find":
-		filter := ""
-		if len(cmdArgs) > 0 {
-			filter = cmdArgs[0]
-		}
-		defaultRepo, err := getDefaultRepo()
-		if err != nil {
-			return err
-		}
-		repo, err := NewGitRepository(defaultRepo)
-		if err != nil {
-			return err
-		}
-		return findSkills(repo, defaultRepo, filter)
-	case "get":
-		fs := flag.NewFlagSet("get", flag.ContinueOnError)
-		agent := fs.String("a", "", "target agent (claude|agents)")
-		global := fs.Bool("g", false, "install to global scope")
-		flagSkillPath := fs.String("p", "", "skill path within repository")
-		if err := fs.Parse(cmdArgs); err != nil {
-			return err
-		}
-		target := ""
-		if len(fs.Args()) > 0 {
-			target = fs.Args()[0]
-		}
-
-		repoURL, err := getDefaultRepo()
-		if err != nil {
-			return err
-		}
-		skillPath := ""
-		if target != "" {
-			if strings.Contains(target, "/") || strings.Contains(target, ":") {
-				repoURL, skillPath = parseRepoURL(target)
-				if *flagSkillPath != "" {
-					skillPath = *flagSkillPath
-				}
-			} else {
-				skillPath = target
-			}
-		}
-
-		repo, err := NewGitRepository(repoURL)
-		if err != nil {
-			return err
-		}
-		resolver, err := NewFileSystemScopeResolver()
-		if err != nil {
-			return err
-		}
-		return getSkill(repo, resolver, skillPath, *agent, *global)
-	case "remove", "rm":
-		fs := flag.NewFlagSet("remove", flag.ContinueOnError)
-		agent := fs.String("a", "", "target agent")
-		global := fs.Bool("g", false, "remove from global storage")
-		if err := fs.Parse(cmdArgs); err != nil {
-			return err
-		}
-		if len(fs.Args()) < 1 {
-			return fmt.Errorf("expected skill name")
-		}
-		resolver, err := NewFileSystemScopeResolver()
-		if err != nil {
-			return err
-		}
-		return removeSkill(resolver, fs.Args()[0], *agent, *global)
-	case "update":
-		if len(cmdArgs) < 1 {
-			return fmt.Errorf("expected skill name")
-		}
-		defaultRepo, err := getDefaultRepo()
-		if err != nil {
-			return err
-		}
-		repo, err := NewGitRepository(defaultRepo)
-		if err != nil {
-			return err
-		}
-		resolver, err := NewFileSystemScopeResolver()
-		if err != nil {
-			return err
-		}
-		return updateSkill(repo, resolver, cmdArgs[0])
-	default:
+	cmd, ok := commands[name]
+	if !ok {
 		return fmt.Errorf("unknown command: %s", name)
 	}
-}
 
-func help(message string) {
-	if message != "" {
-		fmt.Printf("%s\n\n", message)
-	}
-	fmt.Printf(`skillbase - Manage agent skills
-
-Commands:
-  help              Print this help message
-  list, ls          List installed skills
-    -g              List global skills
-  find [filter]     Find available skills in repository
-  get [skill|url]   Download skill(s) and link to agent scope
-    -p path         Skill path within repository
-    -a agent        Target agent (claude|agents)
-    -g              Install to global agent scope
-  rm, remove <name> Remove skill
-    -a agent        Remove from specific agent only
-    -g              Remove from global storage
-  update <name>     Update existing skill
-
-Default repository: set via SKILLBASE_DEFAULT_REPO environment variable
-`)
-}
-
-func listSkills(global bool) error {
-	var path string
-	if global {
-		path = skillbasePath
-	} else {
-		path = "."
-	}
-
-	var found bool
-	err := fs.WalkDir(os.DirFS(path), ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !strings.HasPrefix(path, ".") && !global {
-			return filepath.SkipDir
-		}
-
-		if d.Name() == "SKILL.md" {
-			parts := strings.Split(path, string(os.PathSeparator))
-			skillName, _ := strings.CutSuffix(parts[len(parts)-2], string(os.PathSeparator))
-			fmt.Printf("  %s: %s\n", skillName, path)
-			found = true
-		}
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("%w: %w", ErrSkillNotFound, err)
-	}
-
-	if !found {
-		fmt.Println("No skills installed")
-	}
-	return nil
-}
-
-func findSkills(repo Repository, repoURL string, filter string) error {
-	ctx := context.Background()
-
-	fmt.Printf("Searching repository: %s\n\n", repoURL)
-
-	clonePath, cleanup, err := repo.Clone(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to clone: %w", err)
-	}
-	defer func() { _ = cleanup() }()
-
-	skills, err := repo.ListSkills(clonePath)
-	if err != nil {
-		return fmt.Errorf("failed to list skills: %w", err)
-	}
-
-	if len(skills) == 0 {
-		if filter != "" {
-			fmt.Printf("No skills matching %q found\n", filter)
-		} else {
-			fmt.Println("No skills found")
-		}
-		return nil
-	}
-
-	for _, skill := range skills {
-		if filter != "" && !strings.Contains(strings.ToLower(skill.Name), strings.ToLower(filter)) {
-			continue
-		}
-		desc := skill.Description
-		if desc == "" {
-			desc = "(no description)"
-		}
-		fmt.Printf("  %-20s %s\n", skill.Name, desc)
-	}
-	return nil
-}
-
-func installSkill(srcDir, skillName string) error {
-	if err := os.MkdirAll(skillbasePath, 0o755); err != nil {
-		return err
-	}
-	dstDir := filepath.Join(skillbasePath, skillName)
-	if err := os.RemoveAll(dstDir); err != nil {
-		return err
-	}
-	return fsutil.CopyDir(srcDir, dstDir)
-}
-
-func linkSkill(resolver ScopeResolver, skillName string, agents []string, global bool) error {
-	storageDir := filepath.Join(skillbasePath, skillName)
-
-	for _, agent := range agents {
-		targets, err := resolver.Resolve(skillName, global, agent)
-		if err != nil {
-			return err
-		}
-
-		for _, target := range targets {
-			if err := os.MkdirAll(target.Path, 0o755); err != nil {
-				return err
-			}
-			linkPath := filepath.Join(target.Path, skillName)
-			_ = os.Remove(linkPath)
-			relStorage, _ := filepath.Rel(target.Path, storageDir)
-			if relStorage == "" {
-				relStorage = storageDir
-			}
-			if err := os.Symlink(relStorage, linkPath); err != nil {
-				return fmt.Errorf("failed to link %s: %w", target.Agent, err)
-			}
-			scopeType := "project"
-			if global {
-				scopeType = "global"
-			}
-			fmt.Printf("Linked %s to %s scope (%s)\n", skillName, target.Agent, scopeType)
-		}
-	}
-	return nil
+	return cmd(cmdArgs)
 }
 
 func parseRepoURL(input string) (repoURL, skillPath string) {
@@ -297,7 +86,36 @@ func parseRepoURL(input string) (repoURL, skillPath string) {
 	return strings.Join(repoParts, "/"), strings.Join(skillParts, "/")
 }
 
-func getSkill(repo Repository, resolver ScopeResolver, skillPath, agent string, global bool) error {
+func doGetSkill(repo Repository, store SkillStore, clonePath, source, skillPath string, agents []string, global bool) error {
+	skills, err := fetchSkillsFromRepo(repo, clonePath, skillPath)
+	if err != nil {
+		return err
+	}
+
+	skillNames, installedSkills := installFetchedSkills(skills, clonePath, store)
+
+	for _, skill := range installedSkills {
+		prov := Provenance{
+			Source:      source,
+			SkillPath:   skill.Path,
+			InstalledAt: time.Now().UTC().Format(time.RFC3339),
+		}
+		if err := store.WriteProvenance(skill.Name, prov); err != nil {
+			log.Printf("Warning: failed to write meta for %s: %v", skill.Name, err)
+		}
+	}
+
+	for _, skillName := range skillNames {
+		for _, agent := range agents {
+			if err := store.Link(skillName, agent, global); err != nil {
+				log.Printf("Warning: failed to link %s: %v", skillName, err)
+			}
+		}
+	}
+	return nil
+}
+
+func getSkill(repo Repository, store SkillStore, source, skillPath string, agents []string, global bool) error {
 	ctx := context.Background()
 
 	clonePath, cleanup, err := repo.Clone(ctx)
@@ -306,24 +124,7 @@ func getSkill(repo Repository, resolver ScopeResolver, skillPath, agent string, 
 	}
 	defer func() { _ = cleanup() }()
 
-	skills, err := fetchSkillsFromRepo(repo, clonePath, skillPath)
-	if err != nil {
-		return err
-	}
-
-	skillNames := installFetchedSkills(skills, clonePath)
-
-	agents, err := resolveTargetAgents(resolver, agent, global)
-	if err != nil {
-		return err
-	}
-
-	for _, skillName := range skillNames {
-		if err := linkSkill(resolver, skillName, agents, global); err != nil {
-			log.Printf("Warning: failed to link %s: %v", skillName, err)
-		}
-	}
-	return nil
+	return doGetSkill(repo, store, clonePath, source, skillPath, agents, global)
 }
 
 func fetchSkillsFromRepo(repo Repository, clonePath, skillPath string) ([]Skill, error) {
@@ -342,86 +143,39 @@ func fetchSkillsFromRepo(repo Repository, clonePath, skillPath string) ([]Skill,
 	return []Skill{skill}, nil
 }
 
-func installFetchedSkills(skills []Skill, clonePath string) []string {
+func installFetchedSkills(skills []Skill, clonePath string, store SkillStore) ([]string, []Skill) {
 	skillNames := make([]string, 0, len(skills))
+	installed := make([]Skill, 0, len(skills))
 	for _, skill := range skills {
 		skillDir := filepath.Join(clonePath, skill.Path)
-		if err := installSkill(skillDir, skill.Name); err != nil {
+		if err := store.Install(skill.Name, skillDir); err != nil {
 			log.Printf("Failed to install %s: %v", skill.Name, err)
 			continue
 		}
 		skillNames = append(skillNames, skill.Name)
+		installed = append(installed, skill)
 	}
 	if len(skillNames) == 1 {
 		fmt.Printf("Installed skill: %s\n", skillNames[0])
 	} else {
 		fmt.Printf("Installed %d skills\n", len(skillNames))
 	}
-	return skillNames
+	return skillNames, installed
 }
 
-func resolveTargetAgents(resolver ScopeResolver, agent string, global bool) ([]string, error) {
-	if agent != "" {
-		return []string{agent}, nil
-	}
-	if global {
-		return []string{"claude", "agents"}, nil
-	}
-	agents := resolver.DetectAgents(false)
-	if len(agents) == 0 {
-		return nil, fmt.Errorf("no agent scopes detected; use -a or -g")
-	}
-	return agents, nil
-}
-
-func removeSkill(resolver ScopeResolver, skillName, agent string, global bool) error {
-	if global {
-		storageDir := filepath.Join(skillbasePath, skillName)
-		if _, err := os.Stat(storageDir); os.IsNotExist(err) {
-			fmt.Printf("Skill %q not found\n", skillName)
-			return nil
-		}
-
-		for _, ag := range []string{"claude", "agents"} {
-			targets, _ := resolver.Resolve(skillName, true, ag)
-			for _, target := range targets {
-				linkPath := filepath.Join(target.Path, skillName)
-				_ = os.Remove(linkPath)
-			}
-		}
-
-		_ = os.RemoveAll(storageDir)
-		fmt.Printf("Removed %s\n", skillName)
-	} else {
-		agents := resolver.DetectAgents(false)
-		if agent != "" {
-			agents = []string{agent}
-		}
-
-		removed := false
-		for _, ag := range agents {
-			targets, _ := resolver.Resolve(skillName, false, ag)
-			for _, target := range targets {
-				linkPath := filepath.Join(target.Path, skillName)
-				if _, err := os.Lstat(linkPath); err == nil {
-					_ = os.RemoveAll(linkPath)
-					fmt.Printf("Removed %s from %s\n", skillName, ag)
-					removed = true
-				}
-			}
-		}
-
-		if !removed {
-			fmt.Printf("Skill %q not found\n", skillName)
+func removeSkills(store SkillStore, skillNames []string, agent string, global bool) error {
+	for _, name := range skillNames {
+		if err := store.Remove(name, agent, global); err != nil {
+			log.Printf("Warning: failed to remove %s: %v", name, err)
 		}
 	}
 	return nil
 }
 
-func updateSkill(repo Repository, resolver ScopeResolver, skillName string) error {
-	storageDir := filepath.Join(skillbasePath, skillName)
-	if _, err := os.Stat(storageDir); os.IsNotExist(err) {
+func updateSkill(repo Repository, store SkillStore, source, skillPath string) error {
+	skillName := filepath.Base(skillPath)
+	if !store.Exists(skillName) {
 		return fmt.Errorf("skill %q not installed", skillName)
 	}
-	return getSkill(repo, resolver, skillName, "", false)
+	return getSkill(repo, store, source, skillPath, []string{""}, false)
 }

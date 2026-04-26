@@ -6,7 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+
+	"github.com/andrew-a-hale/skillbase/internal/skill"
 )
 
 // CleanupFunc removes temporary resources
@@ -112,7 +113,7 @@ func (g *GitRepository) ListSkills(clonePath string) ([]Skill, error) {
 		seenNames[name] = true
 
 		relPath, _ := filepath.Rel(clonePath, dir)
-		desc := extractSkillDescription(path)
+		desc := readDescription(path)
 
 		skills = append(skills, Skill{
 			Name:        name,
@@ -142,7 +143,7 @@ func (g *GitRepository) GetSkill(clonePath, skillPath string) (Skill, error) {
 	}
 
 	name := filepath.Base(skillDir)
-	desc := extractSkillDescription(skillFile)
+	desc := readDescription(skillFile)
 
 	return Skill{
 		Name:        name,
@@ -151,24 +152,12 @@ func (g *GitRepository) GetSkill(clonePath, skillPath string) (Skill, error) {
 	}, nil
 }
 
-// extractSkillDescription parses SKILL.md frontmatter for description field
-func extractSkillDescription(skillFile string) string {
-	content, err := os.ReadFile(skillFile)
+func readDescription(path string) string {
+	f, err := os.Open(path)
 	if err != nil {
 		return ""
 	}
-
-	// Simple regex for description: field in frontmatter
-	lines := strings.SplitSeq(string(content), "\n")
-	for line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(strings.ToLower(line), "description:") {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				return strings.TrimSpace(parts[1])
-			}
-		}
-	}
-
-	return ""
+	defer f.Close()
+	fm, _ := skill.ParseFrontmatter(f)
+	return fm["description"]
 }

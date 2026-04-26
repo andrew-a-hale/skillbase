@@ -31,16 +31,9 @@ type FileSystemScopeResolver struct {
 	cwd  string
 }
 
-// NewFileSystemScopeResolver creates a resolver for the current environment
-func NewFileSystemScopeResolver() (*FileSystemScopeResolver, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get working directory: %w", err)
-	}
-	return &FileSystemScopeResolver{
-		home: os.Getenv("HOME"),
-		cwd:  cwd,
-	}, nil
+// NewFileSystemScopeResolver creates a resolver with explicit home and cwd.
+func NewFileSystemScopeResolver(home, cwd string) (*FileSystemScopeResolver, error) {
+	return &FileSystemScopeResolver{home: home, cwd: cwd}, nil
 }
 
 // DetectAgents returns which agent directories exist

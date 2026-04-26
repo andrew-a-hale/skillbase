@@ -2,7 +2,6 @@ package cli
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -74,40 +73,4 @@ func TestDispatchNoArgs(t *testing.T) {
 	if err := Dispatch([]string{"skillbase"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-}
-
-func TestListSkillsGlobal(t *testing.T) {
-	t.Run("global empty", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		oldPath := skillbasePath
-		skillbasePath = filepath.Join(tmpDir, ".skillbase")
-		defer func() { skillbasePath = oldPath }()
-
-		if err := os.MkdirAll(skillbasePath, 0o755); err != nil {
-			t.Fatalf("mkdir: %v", err)
-		}
-
-		if err := listSkills(true); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-
-	t.Run("global with skills", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		oldPath := skillbasePath
-		skillbasePath = filepath.Join(tmpDir, ".skillbase")
-		defer func() { skillbasePath = oldPath }()
-
-		skillDir := filepath.Join(skillbasePath, "my-skill")
-		if err := os.MkdirAll(skillDir, 0o755); err != nil {
-			t.Fatalf("mkdir: %v", err)
-		}
-		if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("---\nname: my-skill\n---\n"), 0o644); err != nil {
-			t.Fatalf("write skill: %v", err)
-		}
-
-		if err := listSkills(true); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
 }
