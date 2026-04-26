@@ -41,6 +41,26 @@ func TestParseFrontmatter(t *testing.T) {
 			content:  "",
 			expected: map[string]string{},
 		},
+		{
+			name:     "folded scalar",
+			content:  "---\ndescription: >\n  line one\n  line two\n---\n",
+			expected: map[string]string{"description": "line one line two"},
+		},
+		{
+			name:     "literal scalar",
+			content:  "---\ndescription: |\n  line one\n  line two\n---\n",
+			expected: map[string]string{"description": "line one\nline two"},
+		},
+		{
+			name:     "folded scalar strip",
+			content:  "---\ndescription: >-\n  line one\n  line two\n---\n",
+			expected: map[string]string{"description": "line one line two"},
+		},
+		{
+			name:     "literal scalar strip",
+			content:  "---\ndescription: |-\n  line one\n  line two\n---\n",
+			expected: map[string]string{"description": "line one\nline two"},
+		},
 	}
 
 	for _, tt := range tests {

@@ -5,6 +5,8 @@ import (
 	"bufio"
 	"io"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // ParseFrontmatter reads YAML-style frontmatter from r and returns the
@@ -13,30 +15,44 @@ import (
 // Keys are normalised to lower case.
 func ParseFrontmatter(r io.Reader) (map[string]string, error) {
 	scanner := bufio.NewScanner(r)
-	inFrontmatter := false
 	foundStart := false
-	result := make(map[string]string)
+	var lines []string
 
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "---" {
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "---" {
 			if !foundStart {
 				foundStart = true
-				inFrontmatter = true
 				continue
 			}
 			// End delimiter
 			break
 		}
-		if inFrontmatter {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				key := strings.ToLower(strings.TrimSpace(parts[0]))
-				val := strings.TrimSpace(parts[1])
-				result[key] = val
-			}
+		if foundStart {
+			lines = append(lines, line)
 		}
 	}
 
-	return result, scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	if !foundStart || len(lines) == 0 {
+		return map[string]string{}, nil
+	}
+
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal([]byte(strings.Join(lines, "\n")), &raw); err != nil {
+		return map[string]string{}, nil
+	}
+
+	result := make(map[string]string, len(raw))
+	for k, v := range raw {
+		key := strings.ToLower(k)
+		if s, ok := v.(string); ok {
+			result[key] = s
+		}
+	}
+	return result, nil
 }
