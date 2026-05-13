@@ -2,12 +2,11 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/reflow/truncate"
-	"github.com/muesli/reflow/wordwrap"
+	tea "charm.land/bubbletea/v2"
+	"golang.org/x/term"
 )
 
 type ListModel struct {
@@ -23,9 +22,12 @@ type ListModel struct {
 }
 
 func NewListModel(projectSkills, globalSkills []SkillInfo) *ListModel {
+	w, h, _ := term.GetSize(int(os.Stdout.Fd()))
 	return &ListModel{
 		projectSkills: projectSkills,
 		globalSkills:  globalSkills,
+		width:         w - 4,
+		height:        h,
 	}
 }
 
@@ -47,7 +49,7 @@ func (m *ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if IsKey(msg, DefaultKeyMap.Quit) {
 			m.Cancelled = true
 			return m, tea.Quit
@@ -65,9 +67,11 @@ func (m *ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *ListModel) View() string {
+func (m *ListModel) View() tea.View {
+	v := tea.NewView("")
 	if m.Err != nil {
-		return ErrorStyle.Render(fmt.Sprintf("Error: %v\n\nPress any key to quit.", m.Err))
+		v.SetContent(ErrorStyle.Render(fmt.Sprintf("Error: %v\n\nPress any key to quit.", m.Err)))
+		return v
 	}
 
 	var b strings.Builder
@@ -88,7 +92,7 @@ func (m *ListModel) View() string {
 			if desc == "" {
 				desc = "(no description)"
 			}
-			b.WriteString(m.renderSkillLine(selected, skill.Name, agents, desc))
+			b.WriteString(renderListItem(selected, m.width, skill.Name+MutedStyle.Render(agents), desc))
 			cursor++
 		}
 		b.WriteString("\n")
@@ -97,13 +101,17 @@ func (m *ListModel) View() string {
 	if len(m.globalSkills) > 0 {
 		b.WriteString(SubtitleStyle.Render("Global Scope"))
 		b.WriteString("\n")
-		for _, skill := range m.globalSkills {
+		for i, skill := range m.globalSkills {
+			if i-m.cursor > 5 || i-m.cursor < -5 {
+				continue // skip
+			}
+
 			selected := m.cursor == cursor
 			desc := skill.Description
 			if desc == "" {
 				desc = "(no description)"
 			}
-			b.WriteString(m.renderSkillLine(selected, skill.Name, "", desc))
+			b.WriteString(renderListItem(selected, m.width, skill.Name, desc))
 			cursor++
 		}
 	}
@@ -116,32 +124,8 @@ func (m *ListModel) View() string {
 	b.WriteString("\n")
 	b.WriteString(HelpStyle.Render("j/\u2193 k/\u2191 navigate \u2022 q/esc quit"))
 
-	return b.String()
-}
-
-func (m *ListModel) renderSkillLine(selected bool, name, agents, desc string) string {
-	if selected {
-		header := name + MutedStyle.Render(agents)
-		wrapWidth := max(m.width-4, 10)
-		wrappedDesc := wordwrap.String(desc, wrapWidth)
-		lines := strings.Split(wrappedDesc, "\n")
-
-		var b strings.Builder
-		b.WriteString(SelectedItemStyle.Render("> " + header))
-		for _, line := range lines {
-			b.WriteString("\n")
-			b.WriteString(SelectedItemStyle.Render("  " + MutedStyle.Render(line)))
-		}
-		b.WriteString("\n")
-		return b.String()
-	}
-
-	// Not selected: truncate description to fit on one line
-	available := max(m.width-6, 10)
-	header := name + MutedStyle.Render(agents)
-	prefix := header + "  "
-	prefixWidth := lipgloss.Width(prefix)
-	descWidth := max(available-prefixWidth, 3)
-	truncatedDesc := truncate.StringWithTail(desc, uint(descWidth), "...")
-	return ItemStyle.Render("  "+prefix+MutedStyle.Render(truncatedDesc)) + "\n"
+	v.SetContent(viewMargin(b.String()))
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+	return v
 }

@@ -3,15 +3,15 @@ package tui
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestUpdateModelConfirm(t *testing.T) {
 	skills := []SkillInfo{{Name: "a"}, {Name: "b"}}
 	m := NewUpdateModel(skills)
-	model, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	model, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	m = model.(*UpdateModel)
-	model, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = model.(*UpdateModel)
 	if cmd == nil {
 		t.Fatal("expected quit cmd")
@@ -26,7 +26,7 @@ func TestUpdateModelConfirm(t *testing.T) {
 
 func TestUpdateModelQuit(t *testing.T) {
 	m := NewUpdateModel([]SkillInfo{{Name: "a"}})
-	model, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = model.(*UpdateModel)
 	if cmd == nil {
 		t.Fatal("expected quit cmd")

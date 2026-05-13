@@ -2,9 +2,11 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
+	"golang.org/x/term"
 )
 
 type removeStep int
@@ -37,12 +39,15 @@ type RemoveModel struct {
 }
 
 func NewRemoveModel(globalSkills []string, projectSkills []SkillInfo, preGlobal bool, preAgent string) *RemoveModel {
+	w, h, _ := term.GetSize(int(os.Stdout.Fd()))
 	m := &RemoveModel{
 		globalSkills:  globalSkills,
 		projectSkills: projectSkills,
 		selected:      make(map[int]bool),
 		preGlobal:     preGlobal,
 		preAgent:      preAgent,
+		width:         w - 4,
+		height:        h,
 	}
 
 	if preGlobal {
@@ -57,7 +62,7 @@ func (m *RemoveModel) Init() tea.Cmd { return nil }
 
 func (m *RemoveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.Err != nil {
-		if _, ok := msg.(tea.KeyMsg); ok {
+		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, tea.Quit
 		}
 		return m, nil
@@ -71,7 +76,7 @@ func (m *RemoveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if IsKey(msg, DefaultKeyMap.Quit) {
 			m.Cancelled = true
 			return m, tea.Quit
@@ -96,7 +101,7 @@ func (m *RemoveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *RemoveModel) updateScopeStep(msg tea.KeyMsg) {
+func (m *RemoveModel) updateScopeStep(msg tea.KeyPressMsg) {
 	switch {
 	case IsKey(msg, DefaultKeyMap.Up), IsKey(msg, DefaultKeyMap.Down):
 		m.global = !m.global
@@ -106,7 +111,7 @@ func (m *RemoveModel) updateScopeStep(msg tea.KeyMsg) {
 	}
 }
 
-func (m *RemoveModel) updateSkillsStep(msg tea.KeyMsg) {
+func (m *RemoveModel) updateSkillsStep(msg tea.KeyPressMsg) {
 	items := m.currentItems()
 	switch {
 	case IsKey(msg, DefaultKeyMap.Down):
@@ -129,7 +134,7 @@ func (m *RemoveModel) updateSkillsStep(msg tea.KeyMsg) {
 	}
 }
 
-func (m *RemoveModel) updateConfirmStep(msg tea.KeyMsg) tea.Cmd {
+func (m *RemoveModel) updateConfirmStep(msg tea.KeyPressMsg) tea.Cmd {
 	if IsKey(msg, DefaultKeyMap.Confirm) {
 		items := m.currentItems()
 		var names []string
@@ -165,9 +170,14 @@ func (m *RemoveModel) handleMouse(msg tea.MouseMsg) {
 	}
 }
 
-func (m *RemoveModel) View() string {
+func (m *RemoveModel) View() tea.View {
+	v := tea.NewView("")
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+
 	if m.Err != nil {
-		return ErrorStyle.Render(fmt.Sprintf("Error: %v\n\nPress any key to quit.", m.Err))
+		v.SetContent(ErrorStyle.Render(fmt.Sprintf("Error: %v\n\nPress any key to quit.", m.Err)))
+		return v
 	}
 
 	var b strings.Builder
@@ -213,8 +223,7 @@ func (m *RemoveModel) View() string {
 			if len(item.Agents) > 0 {
 				agents = fmt.Sprintf(" (%s)", strings.Join(item.Agents, ", "))
 			}
-			b.WriteString(itemLine(m.cursor == i, fmt.Sprintf("%s%s%s", checked, item.Name, MutedStyle.Render(agents))))
-			b.WriteString("\n")
+			b.WriteString(renderListItem(m.cursor == i, m.width, checked+item.Name+MutedStyle.Render(agents), item.Description))
 		}
 
 	case removeStepConfirm:
@@ -242,5 +251,6 @@ func (m *RemoveModel) View() string {
 	b.WriteString("\n")
 	b.WriteString(HelpStyle.Render("j/\u2193 k/\u2191 navigate \u2022 space select \u2022 enter/l/\u2192 confirm \u2022 h/\u2190 back \u2022 q/esc quit"))
 
-	return b.String()
+	v.SetContent(viewMargin(b.String()))
+	return v
 }

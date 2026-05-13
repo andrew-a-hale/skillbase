@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 type UpdateModel struct {
@@ -27,7 +27,7 @@ func (m *UpdateModel) Init() tea.Cmd { return nil }
 
 func (m *UpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.Err != nil {
-		if _, ok := msg.(tea.KeyMsg); ok {
+		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, tea.Quit
 		}
 		return m, nil
@@ -41,7 +41,7 @@ func (m *UpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if IsKey(msg, DefaultKeyMap.Quit) {
 			m.Cancelled = true
 			return m, tea.Quit
@@ -63,9 +63,14 @@ func (m *UpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *UpdateModel) View() string {
+func (m *UpdateModel) View() tea.View {
+	v := tea.NewView("")
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+
 	if m.Err != nil {
-		return ErrorStyle.Render(fmt.Sprintf("Error: %v\n\nPress any key to quit.", m.Err))
+		v.SetContent(ErrorStyle.Render(fmt.Sprintf("Error: %v\n\nPress any key to quit.", m.Err)))
+		return v
 	}
 
 	var b strings.Builder
@@ -83,8 +88,7 @@ func (m *UpdateModel) View() string {
 		if len(skill.Agents) > 0 {
 			agents = fmt.Sprintf(" [%s]", strings.Join(skill.Agents, ", "))
 		}
-		b.WriteString(itemLine(m.cursor == i, fmt.Sprintf("%s%s  %s", skill.Name, MutedStyle.Render(agents), MutedStyle.Render(desc))))
-		b.WriteString("\n")
+		b.WriteString(renderListItem(m.cursor == i, m.width, skill.Name+MutedStyle.Render(agents), desc))
 	}
 
 	if len(m.skills) == 0 {
@@ -95,5 +99,6 @@ func (m *UpdateModel) View() string {
 	b.WriteString("\n")
 	b.WriteString(HelpStyle.Render("j/\u2193 k/\u2191 navigate \u2022 enter/l/\u2192 select \u2022 q/esc quit"))
 
-	return b.String()
+	v.SetContent(viewMargin(b.String()))
+	return v
 }

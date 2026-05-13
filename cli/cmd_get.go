@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/andrew-a-hale/skillbase/tui"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 func cmdGet(args []string) error {
@@ -63,25 +63,28 @@ func cmdGet(args []string) error {
 		return getSkill(repo, store, repoURL, skillPath, []string{*agent}, *global)
 	}
 
-	ctx := context.Background()
-	clonePath, cleanup, err := repo.Clone(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to clone: %w", err)
-	}
-	defer func() { _ = cleanup() }()
+	loadCmd := func() tea.Msg {
+		ctx := context.Background()
+		clonePath, cleanup, err := repo.Clone(ctx)
+		if err != nil {
+			return tui.LoadMsg{Err: fmt.Errorf("failed to clone: %w", err)}
+		}
+		defer func() { _ = cleanup() }()
 
-	skills, err := repo.ListSkills(clonePath)
-	if err != nil {
-		return fmt.Errorf("failed to list skills: %w", err)
-	}
+		skills, err := repo.ListSkills(clonePath)
+		if err != nil {
+			return tui.LoadMsg{Err: fmt.Errorf("failed to list skills: %w", err)}
+		}
 
-	var tuiSkills []tui.SkillInfo
-	for _, s := range skills {
-		tuiSkills = append(tuiSkills, tui.SkillInfo{
-			Name:        s.Name,
-			Path:        s.Path,
-			Description: s.Description,
-		})
+		var tuiSkills []tui.SkillInfo
+		for _, s := range skills {
+			tuiSkills = append(tuiSkills, tui.SkillInfo{
+				Name:        s.Name,
+				Path:        s.Path,
+				Description: s.Description,
+			})
+		}
+		return tui.LoadMsg{Skills: tuiSkills, ClonePath: clonePath}
 	}
 
 	preSkill := ""
@@ -89,8 +92,8 @@ func cmdGet(args []string) error {
 		preSkill = filepath.Base(skillPath)
 	}
 
-	model := tui.NewGetModel(tuiSkills, preSkill, *agent, *global, detectedAgents)
-	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	model := tui.NewGetModel(preSkill, *agent, *global, detectedAgents).WithLoadCmd(loadCmd)
+	p := tea.NewProgram(model)
 	finalModel, err := p.Run()
 	if err != nil {
 		return err
@@ -107,5 +110,17 @@ func cmdGet(args []string) error {
 		return nil
 	}
 
-	return doGetSkill(repo, store, clonePath, repoURL, m.Result.SkillPath, m.Result.Agents, m.Result.Global)
+	if len(m.Result.SkillNames) > 0 {
+		for i := range m.Result.SkillNames {
+			if err := doGetSkill(
+				repo, store, m.Result.ClonePath, repoURL,
+				m.Result.SkillPaths[i], m.Result.Agents, m.Result.Global,
+			); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	return doGetSkill(repo, store, m.Result.ClonePath, repoURL, m.Result.SkillPath, m.Result.Agents, m.Result.Global)
 }

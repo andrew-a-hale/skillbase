@@ -3,8 +3,9 @@ package cli
 import (
 	"os"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/andrew-a-hale/skillbase/tui"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 func cmdList(args []string) error {
@@ -24,7 +25,7 @@ func cmdList(args []string) error {
 	}
 
 	model := tui.NewListModel(toTuiSkills(project, "project"), toTuiSkills(global, "global"))
-	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	p := tea.NewProgram(model)
 	_, err = p.Run()
 	return err
 }

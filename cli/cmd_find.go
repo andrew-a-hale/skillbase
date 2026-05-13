@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/andrew-a-hale/skillbase/tui"
+	tea "charm.land/bubbletea/v2"
 )
 
 func cmdFind(args []string) error {
@@ -22,29 +22,32 @@ func cmdFind(args []string) error {
 		return err
 	}
 
-	ctx := context.Background()
-	clonePath, cleanup, err := repo.Clone(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to clone: %w", err)
-	}
-	defer func() { _ = cleanup() }()
+	loadCmd := func() tea.Msg {
+		ctx := context.Background()
+		clonePath, cleanup, err := repo.Clone(ctx)
+		if err != nil {
+			return tui.LoadMsg{Err: fmt.Errorf("failed to clone: %w", err)}
+		}
+		defer func() { _ = cleanup() }()
 
-	skills, err := repo.ListSkills(clonePath)
-	if err != nil {
-		return fmt.Errorf("failed to list skills: %w", err)
+		skills, err := repo.ListSkills(clonePath)
+		if err != nil {
+			return tui.LoadMsg{Err: fmt.Errorf("failed to list skills: %w", err)}
+		}
+
+		var tuiSkills []tui.SkillInfo
+		for _, s := range skills {
+			tuiSkills = append(tuiSkills, tui.SkillInfo{
+				Name:        s.Name,
+				Path:        s.Path,
+				Description: s.Description,
+			})
+		}
+		return tui.LoadMsg{Skills: tuiSkills}
 	}
 
-	var tuiSkills []tui.SkillInfo
-	for _, s := range skills {
-		tuiSkills = append(tuiSkills, tui.SkillInfo{
-			Name:        s.Name,
-			Path:        s.Path,
-			Description: s.Description,
-		})
-	}
-
-	model := tui.NewFindModel(tuiSkills, filter)
-	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	model := tui.NewFindModel(filter).WithLoadCmd(loadCmd)
+	p := tea.NewProgram(model)
 	_, err = p.Run()
 	return err
 }

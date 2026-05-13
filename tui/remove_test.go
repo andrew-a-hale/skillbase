@@ -3,7 +3,7 @@ package tui
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestNewRemoveModelNoPreselections(t *testing.T) {
@@ -25,7 +25,7 @@ func TestNewRemoveModelPreGlobal(t *testing.T) {
 
 func TestRemoveModelScopeToggle(t *testing.T) {
 	m := NewRemoveModel([]string{"g1"}, []SkillInfo{{Name: "p1"}}, false, "")
-	model, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	model, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	m = model.(*RemoveModel)
 	if !m.global {
 		t.Fatal("expected global true")
@@ -34,9 +34,9 @@ func TestRemoveModelScopeToggle(t *testing.T) {
 
 func TestRemoveModelSkillSelect(t *testing.T) {
 	m := NewRemoveModel([]string{"g1", "g2"}, []SkillInfo{{Name: "p1"}}, true, "")
-	model, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	model, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	m = model.(*RemoveModel)
-	model, _ = m.Update(tea.KeyMsg{Type: tea.KeySpace})
+	model, _ = m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
 	m = model.(*RemoveModel)
 	if !m.selected[1] {
 		t.Fatal("expected index 1 selected")
@@ -49,7 +49,7 @@ func TestRemoveModelConfirm(t *testing.T) {
 	m.selected[1] = true
 	m.step = removeStepConfirm
 
-	model, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = model.(*RemoveModel)
 	if cmd == nil {
 		t.Fatal("expected quit cmd")
@@ -65,7 +65,7 @@ func TestRemoveModelConfirm(t *testing.T) {
 func TestRemoveModelBack(t *testing.T) {
 	m := NewRemoveModel([]string{"g1"}, []SkillInfo{{Name: "p1"}}, true, "")
 	m.step = removeStepSkills
-	model, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	model, _ := m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
 	m = model.(*RemoveModel)
 	if m.step != removeStepScope {
 		t.Fatalf("expected step scope, got %d", m.step)
@@ -74,7 +74,7 @@ func TestRemoveModelBack(t *testing.T) {
 
 func TestRemoveModelQuit(t *testing.T) {
 	m := NewRemoveModel(nil, nil, false, "")
-	model, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = model.(*RemoveModel)
 	if cmd == nil {
 		t.Fatal("expected quit cmd")

@@ -118,7 +118,9 @@ func doGetSkill(repo Repository, store SkillStore, clonePath, source, skillPath 
 func getSkill(repo Repository, store SkillStore, source, skillPath string, agents []string, global bool) error {
 	ctx := context.Background()
 
+	s := runSpinner("Cloning repository...")
 	clonePath, cleanup, err := repo.Clone(ctx)
+	s.Stop()
 	if err != nil {
 		return fmt.Errorf("failed to clone: %w", err)
 	}

@@ -3,7 +3,7 @@ package tui
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestListModelAllSkills(t *testing.T) {
@@ -19,7 +19,7 @@ func TestListModelAllSkills(t *testing.T) {
 
 func TestListModelQuit(t *testing.T) {
 	m := NewListModel(nil, nil)
-	model, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEscape})
+	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = model.(*ListModel)
 	if cmd == nil {
 		t.Fatal("expected quit cmd")

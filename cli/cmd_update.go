@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/andrew-a-hale/skillbase/tui"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func cmdUpdate(args []string) error {
@@ -38,7 +38,7 @@ func cmdUpdate(args []string) error {
 		}
 
 		model := tui.NewUpdateModel(toTuiSkills(globalSkills, "global"))
-		p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
+		p := tea.NewProgram(model)
 		finalModel, err := p.Run()
 		if err != nil {
 			return err

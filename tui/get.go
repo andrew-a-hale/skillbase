@@ -2,9 +2,12 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"golang.org/x/term"
 )
 
 type getStep int
@@ -23,6 +26,9 @@ type GetModel struct {
 
 	skills         []SkillInfo
 	selectedSkill  int
+	selectedSkills map[int]bool
+	singleMode     bool
+
 	global         bool
 	selectedAgents map[string]bool
 
@@ -31,6 +37,11 @@ type GetModel struct {
 	preGlobal      bool
 	detectedAgents []string
 
+	loading   bool
+	spinner   spinner.Model
+	loadCmd   tea.Cmd
+	clonePath string
+
 	width, height int
 
 	Result    *GetResult
@@ -38,55 +49,101 @@ type GetModel struct {
 	Cancelled bool
 }
 
-func NewGetModel(skills []SkillInfo, preSkill, preAgent string, preGlobal bool, detectedAgents []string) *GetModel {
+func NewGetModel(preSkill, preAgent string, preGlobal bool, detectedAgents []string) *GetModel {
+	s := spinner.New(spinner.WithSpinner(spinner.Dot))
+	s.Style = TitleStyle
+	w, h, _ := term.GetSize(int(os.Stdout.Fd()))
 	m := &GetModel{
-		skills:         skills,
+		selectedSkills: make(map[int]bool),
 		selectedAgents: make(map[string]bool),
 		preSkill:       preSkill,
 		preAgent:       preAgent,
 		preGlobal:      preGlobal,
 		detectedAgents: detectedAgents,
+		loading:        true,
+		spinner:        s,
+		width:          w - 4,
+		height:         h,
 	}
 
 	m.step = getStepSkill
 
-	if preSkill != "" {
-		for i, s := range skills {
-			if s.Name == preSkill {
+	return m
+}
+
+func (m *GetModel) WithLoadCmd(cmd tea.Cmd) *GetModel {
+	m.loadCmd = cmd
+	return m
+}
+
+func (m *GetModel) applyPreselections() {
+	if m.preSkill != "" {
+		for i, s := range m.skills {
+			if s.Name == m.preSkill {
 				m.selectedSkill = i
+				m.selectedSkills[i] = true
+				m.singleMode = true
 				m.step = getStepScope
 				break
 			}
 		}
 	}
 
-	if m.step >= getStepScope && preGlobal {
+	if m.step >= getStepScope && m.preGlobal {
 		m.global = true
 		m.step = getStepAgent
 	}
 
 	if m.step >= getStepAgent {
-		if preAgent != "" {
-			m.selectedAgents[preAgent] = true
+		if m.preAgent != "" {
+			m.selectedAgents[m.preAgent] = true
 			m.step = getStepConfirm
 		} else if m.global {
 			m.selectedAgents["claude"] = true
 			m.selectedAgents["agents"] = true
 			m.step = getStepConfirm
-		} else if !m.global && len(detectedAgents) == 1 {
-			m.selectedAgents[detectedAgents[0]] = true
+		} else if !m.global && len(m.detectedAgents) == 1 {
+			m.selectedAgents[m.detectedAgents[0]] = true
 			m.step = getStepConfirm
 		}
 	}
-
-	return m
 }
 
-func (m *GetModel) Init() tea.Cmd { return nil }
+func (m *GetModel) Init() tea.Cmd {
+	if m.loading && m.loadCmd != nil {
+		return tea.Batch(func() tea.Msg { return m.spinner.Tick() }, m.loadCmd)
+	}
+	return nil
+}
 
 func (m *GetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.loading {
+		switch msg := msg.(type) {
+		case spinner.TickMsg:
+			var cmd tea.Cmd
+			m.spinner, cmd = m.spinner.Update(msg)
+			return m, cmd
+		case LoadMsg:
+			if msg.Err != nil {
+				m.Err = msg.Err
+			} else {
+				m.skills = msg.Skills
+				m.clonePath = msg.ClonePath
+				m.applyPreselections()
+			}
+			m.loading = false
+			return m, nil
+		case tea.KeyPressMsg:
+			if IsKey(msg, DefaultKeyMap.Quit) {
+				m.Cancelled = true
+				return m, tea.Quit
+			}
+		}
+		return m, nil
+	}
+
 	if m.Err != nil {
-		if _, ok := msg.(tea.KeyMsg); ok {
+		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, tea.Quit
 		}
 		return m, nil
@@ -100,7 +157,7 @@ func (m *GetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if IsKey(msg, DefaultKeyMap.Quit) {
 			m.Cancelled = true
 			return m, tea.Quit
@@ -127,22 +184,42 @@ func (m *GetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *GetModel) updateSkillStep(msg tea.KeyMsg) {
+func (m *GetModel) updateSkillStep(msg tea.KeyPressMsg) {
 	switch {
 	case IsKey(msg, DefaultKeyMap.Down):
 		m.down(len(m.skills))
 	case IsKey(msg, DefaultKeyMap.Up):
 		m.up(len(m.skills))
+	case IsKey(msg, DefaultKeyMap.Select):
+		if !m.singleMode {
+			m.selectedSkills[m.cursor] = !m.selectedSkills[m.cursor]
+		}
 	case IsKey(msg, DefaultKeyMap.Confirm):
-		if len(m.skills) > 0 {
-			m.selectedSkill = m.cursor
+		if m.singleMode {
+			if len(m.skills) > 0 {
+				m.selectedSkill = m.cursor
+				m.step = getStepScope
+				m.reset()
+			}
+		} else {
+			hasSelected := false
+			for _, v := range m.selectedSkills {
+				if v {
+					hasSelected = true
+					break
+				}
+			}
+			if !hasSelected && len(m.skills) > 0 {
+				m.selectedSkills[m.cursor] = true
+				m.selectedSkill = m.cursor
+			}
 			m.step = getStepScope
 			m.reset()
 		}
 	}
 }
 
-func (m *GetModel) updateScopeStep(msg tea.KeyMsg) {
+func (m *GetModel) updateScopeStep(msg tea.KeyPressMsg) {
 	switch {
 	case IsKey(msg, DefaultKeyMap.Up), IsKey(msg, DefaultKeyMap.Down):
 		m.global = !m.global
@@ -169,7 +246,7 @@ func (m *GetModel) updateScopeStep(msg tea.KeyMsg) {
 	}
 }
 
-func (m *GetModel) updateAgentStep(msg tea.KeyMsg) {
+func (m *GetModel) updateAgentStep(msg tea.KeyPressMsg) {
 	switch {
 	case IsKey(msg, DefaultKeyMap.Down):
 		m.down(len(m.detectedAgents))
@@ -192,9 +269,8 @@ func (m *GetModel) updateAgentStep(msg tea.KeyMsg) {
 	}
 }
 
-func (m *GetModel) updateConfirmStep(msg tea.KeyMsg) tea.Cmd {
+func (m *GetModel) updateConfirmStep(msg tea.KeyPressMsg) tea.Cmd {
 	if IsKey(msg, DefaultKeyMap.Confirm) {
-		skill := m.skills[m.selectedSkill]
 		var agents []string
 		if m.preAgent != "" {
 			agents = []string{m.preAgent}
@@ -209,11 +285,31 @@ func (m *GetModel) updateConfirmStep(msg tea.KeyMsg) tea.Cmd {
 				}
 			}
 		}
-		m.Result = &GetResult{
-			SkillName: skill.Name,
-			SkillPath: skill.Path,
-			Agents:    agents,
-			Global:    m.global,
+
+		if m.singleMode {
+			skill := m.skills[m.selectedSkill]
+			m.Result = &GetResult{
+				SkillName: skill.Name,
+				SkillPath: skill.Path,
+				Agents:    agents,
+				Global:    m.global,
+				ClonePath: m.clonePath,
+			}
+		} else {
+			var names, paths []string
+			for i, skill := range m.skills {
+				if m.selectedSkills[i] {
+					names = append(names, skill.Name)
+					paths = append(paths, skill.Path)
+				}
+			}
+			m.Result = &GetResult{
+				SkillNames: names,
+				SkillPaths: paths,
+				Agents:     agents,
+				Global:     m.global,
+				ClonePath:  m.clonePath,
+			}
 		}
 		return tea.Quit
 	}
@@ -233,9 +329,21 @@ func (m *GetModel) handleMouse(msg tea.MouseMsg) {
 	m.list.handleMouse(msg, count)
 }
 
-func (m *GetModel) View() string {
+func (m *GetModel) View() tea.View {
+	v := tea.NewView("")
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+
+	if m.loading {
+		var b strings.Builder
+		b.WriteString(viewMargin(m.spinner.View()))
+		v.SetContent(b.String())
+		return v
+	}
+
 	if m.Err != nil {
-		return ErrorStyle.Render(fmt.Sprintf("Error: %v\n\nPress any key to quit.", m.Err))
+		v.SetContent(viewMargin(ErrorStyle.Render(fmt.Sprintf("Error: %v\n\nPress any key to quit.", m.Err))))
+		return v
 	}
 
 	var b strings.Builder
@@ -244,19 +352,40 @@ func (m *GetModel) View() string {
 
 	switch m.step {
 	case getStepSkill:
-		b.WriteString(SubtitleStyle.Render("Select a skill to install"))
+		b.WriteString(SubtitleStyle.Render("Select skills to install"))
 		b.WriteString("\n\n")
 		for i, skill := range m.skills {
+			if i-m.cursor > 5 || i-m.cursor < -5 {
+				continue // skip
+			}
+
 			desc := skill.Description
 			if desc == "" {
 				desc = "(no description)"
 			}
-			b.WriteString(itemLine(m.cursor == i, fmt.Sprintf("%s  %s", skill.Name, MutedStyle.Render(desc))))
-			b.WriteString("\n")
+			if m.singleMode {
+				b.WriteString(renderListItem(m.cursor == i, m.width, skill.Name, desc))
+			} else {
+				checked := "[ ] "
+				if m.selectedSkills[i] {
+					checked = "[x] "
+				}
+				b.WriteString(renderListItem(m.cursor == i, m.width, checked+skill.Name, desc))
+			}
 		}
 
 	case getStepScope:
-		b.WriteString(SubtitleStyle.Render(fmt.Sprintf("Selected: %s", m.skills[m.selectedSkill].Name)))
+		if m.singleMode {
+			b.WriteString(SubtitleStyle.Render(fmt.Sprintf("Selected: %s", m.skills[m.selectedSkill].Name)))
+		} else {
+			var selectedNames []string
+			for i, skill := range m.skills {
+				if m.selectedSkills[i] {
+					selectedNames = append(selectedNames, skill.Name)
+				}
+			}
+			b.WriteString(SubtitleStyle.Render(fmt.Sprintf("Selected: %s", strings.Join(selectedNames, ", "))))
+		}
 		b.WriteString("\n")
 		b.WriteString(SubtitleStyle.Render("Select scope"))
 		b.WriteString("\n\n")
@@ -279,7 +408,17 @@ func (m *GetModel) View() string {
 		}
 
 	case getStepAgent:
-		b.WriteString(SubtitleStyle.Render(fmt.Sprintf("Selected: %s | Scope: Project", m.skills[m.selectedSkill].Name)))
+		if m.singleMode {
+			b.WriteString(SubtitleStyle.Render(fmt.Sprintf("Selected: %s | Scope: Project", m.skills[m.selectedSkill].Name)))
+		} else {
+			var selectedNames []string
+			for i, skill := range m.skills {
+				if m.selectedSkills[i] {
+					selectedNames = append(selectedNames, skill.Name)
+				}
+			}
+			b.WriteString(SubtitleStyle.Render(fmt.Sprintf("Selected: %s | Scope: Project", strings.Join(selectedNames, ", "))))
+		}
 		b.WriteString("\n")
 		b.WriteString(SubtitleStyle.Render("Select agents"))
 		b.WriteString("\n\n")
@@ -288,12 +427,20 @@ func (m *GetModel) View() string {
 			if m.selectedAgents[agent] {
 				checked = "[x] "
 			}
-			b.WriteString(itemLine(m.cursor == i, fmt.Sprintf("%s%s", checked, agent)))
-			b.WriteString("\n")
+			b.WriteString(renderListItem(m.cursor == i, m.width, checked+agent, ""))
 		}
 
 	case getStepConfirm:
-		skill := m.skills[m.selectedSkill]
+		var selectedNames []string
+		if m.singleMode {
+			selectedNames = []string{m.skills[m.selectedSkill].Name}
+		} else {
+			for i, skill := range m.skills {
+				if m.selectedSkills[i] {
+					selectedNames = append(selectedNames, skill.Name)
+				}
+			}
+		}
 		agents := []string{}
 		for a, selected := range m.selectedAgents {
 			if selected {
@@ -306,7 +453,7 @@ func (m *GetModel) View() string {
 		}
 		b.WriteString(SubtitleStyle.Render("Confirm installation"))
 		b.WriteString("\n\n")
-		b.WriteString(ItemStyle.Render(fmt.Sprintf("Skill:  %s", skill.Name)))
+		b.WriteString(ItemStyle.Render(fmt.Sprintf("Skills: %s", strings.Join(selectedNames, ", "))))
 		b.WriteString("\n")
 		b.WriteString(ItemStyle.Render(fmt.Sprintf("Scope:  %s", scope)))
 		b.WriteString("\n")
@@ -318,5 +465,6 @@ func (m *GetModel) View() string {
 	b.WriteString("\n")
 	b.WriteString(HelpStyle.Render("j/\u2193 k/\u2191 navigate \u2022 space select \u2022 enter/l/\u2192 confirm \u2022 h/\u2190 back \u2022 q/esc quit"))
 
-	return b.String()
+	v.SetContent(viewMargin(b.String()))
+	return v
 }

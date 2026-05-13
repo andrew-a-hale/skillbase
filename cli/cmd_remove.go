@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/andrew-a-hale/skillbase/tui"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func cmdRemove(args []string) error {
@@ -42,7 +42,7 @@ func cmdRemove(args []string) error {
 	}
 
 	model := tui.NewRemoveModel(globalNames, toTuiSkills(project, "project"), *global, *agent)
-	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	p := tea.NewProgram(model)
 	finalModel, err := p.Run()
 	if err != nil {
 		return err

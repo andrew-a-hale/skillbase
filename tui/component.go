@@ -1,6 +1,13 @@
 package tui
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"strings"
+
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/muesli/reflow/truncate"
+	"github.com/muesli/reflow/wordwrap"
+)
 
 // list provides reusable cursor navigation.
 // Embed it in a model and call its methods from Update.
@@ -25,10 +32,11 @@ func (l *list) reset() {
 }
 
 func (l *list) handleMouse(msg tea.MouseMsg, count int) {
-	switch msg.Button {
-	case tea.MouseButtonWheelDown:
+	mouse := msg.Mouse()
+	switch mouse.Button {
+	case tea.MouseWheelDown:
 		l.down(count)
-	case tea.MouseButtonWheelUp:
+	case tea.MouseWheelUp:
 		l.up(count)
 	}
 }
@@ -42,4 +50,41 @@ func itemLine(selected bool, content string) string {
 		style = SelectedItemStyle
 	}
 	return style.Render(prefix + " " + content)
+}
+
+// viewMargin wraps a rendered view with horizontal margins.
+func viewMargin(view string) string {
+	return ViewStyle.Render(view)
+}
+
+// renderListItem renders a list item with truncation (unselected) or word-wrapping (selected).
+// It respects the terminal width, applying a right margin for readability.
+func renderListItem(selected bool, width int, name, description string) string {
+	contentWidth := width - 12
+
+	if !selected {
+		nameWidth := lipgloss.Width(name)
+		descMax := contentWidth - 8 - nameWidth
+		var line string
+		if description != "" {
+			truncated := truncate.StringWithTail(description, uint(descMax), "...") //nolint:gosec
+			line = "  " + name + "  " + MutedStyle.Render(truncated)
+		} else {
+			line = "  " + name
+		}
+		return ItemStyle.Render(line) + "\n"
+	}
+
+	var b strings.Builder
+	b.WriteString(SelectedItemStyle.Render("> " + name))
+	if description != "" {
+		wrapWidth := contentWidth - 4
+		wrapped := wordwrap.String(description, wrapWidth)
+		for line := range strings.SplitSeq(wrapped, "\n") {
+			b.WriteString("\n")
+			b.WriteString(SelectedItemStyle.Render("  " + MutedStyle.Render(line)))
+		}
+	}
+	b.WriteString("\n")
+	return b.String()
 }

@@ -1,6 +1,6 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import "charm.land/lipgloss/v2"
 
 var (
 	// Colors
@@ -41,4 +41,8 @@ var (
 			Foreground(Muted).
 			MarginTop(1).
 			MarginLeft(2)
+
+	// ViewStyle wraps entire TUI views with horizontal margins.
+	ViewStyle = lipgloss.NewStyle().
+			Padding(0, 4)
 )

@@ -2,16 +2,23 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"golang.org/x/term"
 )
 
 type FindModel struct {
 	list
 
-	skills []SkillInfo
-	filter string
+	skills  []SkillInfo
+	filter  string
+	loading bool
+
+	spinner spinner.Model
+	loadCmd tea.Cmd
 
 	width, height int
 
@@ -19,11 +26,22 @@ type FindModel struct {
 	Cancelled bool
 }
 
-func NewFindModel(skills []SkillInfo, filter string) *FindModel {
+func NewFindModel(filter string) *FindModel {
+	s := spinner.New(spinner.WithSpinner(spinner.Dot))
+	s.Style = TitleStyle
+	w, h, _ := term.GetSize(int(os.Stdout.Fd()))
 	return &FindModel{
-		skills: skills,
-		filter: strings.ToLower(filter),
+		filter:  strings.ToLower(filter),
+		loading: true,
+		spinner: s,
+		width:   w - 4,
+		height:  h,
 	}
+}
+
+func (m *FindModel) WithLoadCmd(cmd tea.Cmd) *FindModel {
+	m.loadCmd = cmd
+	return m
 }
 
 func (m *FindModel) filteredSkills() []SkillInfo {
@@ -33,6 +51,7 @@ func (m *FindModel) filteredSkills() []SkillInfo {
 	var filtered []SkillInfo
 	for _, s := range m.skills {
 		if strings.Contains(strings.ToLower(s.Name), m.filter) ||
+			strings.Contains(strings.ToLower(s.Path), m.filter) ||
 			strings.Contains(strings.ToLower(s.Description), m.filter) {
 			filtered = append(filtered, s)
 		}
@@ -40,11 +59,42 @@ func (m *FindModel) filteredSkills() []SkillInfo {
 	return filtered
 }
 
-func (m *FindModel) Init() tea.Cmd { return nil }
+func (m *FindModel) Init() tea.Cmd {
+	if m.loading && m.loadCmd != nil {
+		return tea.Batch(func() tea.Msg { return m.spinner.Tick() }, m.loadCmd)
+	}
+	return nil
+}
 
 func (m *FindModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.loading {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+		case spinner.TickMsg:
+			var cmd tea.Cmd
+			m.spinner, cmd = m.spinner.Update(msg)
+			return m, cmd
+		case LoadMsg:
+			if msg.Err != nil {
+				m.Err = msg.Err
+			} else {
+				m.skills = msg.Skills
+			}
+			m.loading = false
+			return m, nil
+		case tea.KeyPressMsg:
+			if IsKey(msg, DefaultKeyMap.Quit) {
+				m.Cancelled = true
+				return m, tea.Quit
+			}
+		}
+		return m, nil
+	}
+
 	if m.Err != nil {
-		if _, ok := msg.(tea.KeyMsg); ok {
+		if _, ok := msg.(tea.KeyPressMsg); ok {
 			return m, tea.Quit
 		}
 		return m, nil
@@ -54,7 +104,7 @@ func (m *FindModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if IsKey(msg, DefaultKeyMap.Quit) {
 			m.Cancelled = true
 			return m, tea.Quit
@@ -65,13 +115,13 @@ func (m *FindModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.down(len(filtered))
 		case IsKey(msg, DefaultKeyMap.Up):
 			m.up(len(filtered))
-		case msg.Type == tea.KeyBackspace:
+		case msg.Code == tea.KeyBackspace:
 			if len(m.filter) > 0 {
 				m.filter = m.filter[:len(m.filter)-1]
 				m.reset()
 			}
-		case msg.Type == tea.KeyRunes:
-			m.filter += strings.ToLower(string(msg.Runes))
+		case len(msg.Text) > 0:
+			m.filter += strings.ToLower(msg.Text)
 			m.reset()
 		}
 	case tea.MouseMsg:
@@ -80,9 +130,22 @@ func (m *FindModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *FindModel) View() string {
+func (m *FindModel) View() tea.View {
+	v := tea.NewView("")
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+
+	if m.loading {
+		var b strings.Builder
+		b.WriteString("\n")
+		b.WriteString(viewMargin(m.spinner.View()) + "Pulling Repository...")
+		v.SetContent(b.String())
+		return v
+	}
+
 	if m.Err != nil {
-		return ErrorStyle.Render(fmt.Sprintf("Error: %v\n\nPress any key to quit.", m.Err))
+		v.SetContent(ErrorStyle.Render(fmt.Sprintf("Error: %v\n\nPress any key to quit.", m.Err)))
+		return v
 	}
 
 	filtered := m.filteredSkills()
@@ -93,12 +156,15 @@ func (m *FindModel) View() string {
 	b.WriteString("\n\n")
 
 	for i, skill := range filtered {
+		if i-m.cursor > 5 || i-m.cursor < -5 {
+			continue // skip
+		}
+
 		desc := skill.Description
 		if desc == "" {
 			desc = "(no description)"
 		}
-		b.WriteString(itemLine(m.cursor == i, fmt.Sprintf("%-20s %s", skill.Name, MutedStyle.Render(desc))))
-		b.WriteString("\n")
+		b.WriteString(renderListItem(m.cursor == i, m.width, skill.Name, desc))
 	}
 
 	if len(filtered) == 0 {
@@ -109,5 +175,6 @@ func (m *FindModel) View() string {
 	b.WriteString("\n")
 	b.WriteString(HelpStyle.Render("Type to filter \u2022 j/\u2193 k/\u2191 navigate \u2022 q/esc quit"))
 
-	return b.String()
+	v.SetContent(viewMargin(b.String()))
+	return v
 }

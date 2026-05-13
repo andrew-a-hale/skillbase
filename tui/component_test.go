@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestListUp(t *testing.T) {
@@ -57,11 +57,11 @@ func TestListReset(t *testing.T) {
 
 func TestListHandleMouse(t *testing.T) {
 	l := &list{cursor: 1}
-	l.handleMouse(tea.MouseMsg{Button: tea.MouseButtonWheelDown}, 3)
+	l.handleMouse(tea.MouseWheelMsg{Button: tea.MouseWheelDown}, 3)
 	if l.cursor != 2 {
 		t.Fatalf("expected cursor 2, got %d", l.cursor)
 	}
-	l.handleMouse(tea.MouseMsg{Button: tea.MouseButtonWheelUp}, 2)
+	l.handleMouse(tea.MouseWheelMsg{Button: tea.MouseWheelUp}, 2)
 	if l.cursor != 1 {
 		t.Fatalf("expected cursor 1, got %d", l.cursor)
 	}
