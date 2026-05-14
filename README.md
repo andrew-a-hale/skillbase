@@ -95,7 +95,7 @@ Commands:
 
 When a command is run without the required arguments, **skillbase** launches an interactive terminal UI powered by [Bubble Tea](https://github.com/charmbracelet/bubbletea):
 
-- **`list` / `find`** — Always interactive. Browse with `j`/`↓` / `k`/`↑` (or the mouse wheel). `find` lets you type to filter in real time.
+- **`list` / `find`** — Always interactive. Browse with `↓` / `↑` (or the mouse wheel). `find` lets you type to filter in real time.
 - **`get`** — Interactive when no skill name is given or when the target scope can't be determined. Walks through selecting a skill, choosing project vs. global scope, picking agents, and confirming.
 - **`remove`** — Interactive when no skill name is given. Choose project or global scope, select one or more skills (space to toggle), and confirm.
 - **`update`** — Interactive when no skill name is given. Pick from globally installed skills.
@@ -104,12 +104,12 @@ When a command is run without the required arguments, **skillbase** launches an 
 
 | Key | Action |
 |---|---|
-| `j` / `↓` | Move down |
-| `k` / `↑` | Move up |
-| `l` / `→` / `enter` | Confirm / next step |
-| `h` / `←` | Go back (multi-step wizards) |
+| `↓` | Move down |
+| `↑` | Move up |
+| `→` / `enter` | Confirm / next step |
+| `←` | Go back (multi-step wizards) |
 | `space` | Toggle selection |
-| `q` / `esc` / `ctrl+c` | Quit |
+| `esc` / `ctrl+c` | Quit |
 
 ### Install from a specific repository
 
