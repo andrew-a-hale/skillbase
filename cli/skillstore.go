@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/andrew-a-hale/skillbase/internal/fsutil"
 	"github.com/andrew-a-hale/skillbase/internal/skill"
@@ -16,7 +15,7 @@ import (
 type InstalledSkill struct {
 	Name        string
 	Description string
-	Agents      []string // only populated for project scope
+	Agents      []string
 }
 
 // Provenance records where an installed skill originated.
@@ -142,30 +141,19 @@ func (s *FileSystemSkillStore) Remove(skillName, agent string, global bool) erro
 
 // ListInstalled scans the filesystem and returns all installed skills.
 func (s *FileSystemSkillStore) ListInstalled() (project []InstalledSkill, global []InstalledSkill, err error) {
-	entries, err := os.ReadDir(s.skillbasePath)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, nil, err
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
-			continue
-		}
-		skillFile := filepath.Join(s.skillbasePath, entry.Name(), "SKILL.md")
-		desc := ""
-		if data, err := os.ReadFile(skillFile); err == nil {
-			fm, _ := skill.ParseFrontmatter(bytes.NewReader(data))
-			desc = fm["description"]
-		}
-		global = append(global, InstalledSkill{
-			Name:        entry.Name(),
-			Description: desc,
-		})
-	}
+	global = s.collectLinkedSkills(true)
+	project = s.collectLinkedSkills(false)
+	return project, global, nil
+}
 
-	projectAgents := s.resolver.DetectAgents(false)
-	projectMap := make(map[string]*InstalledSkill)
-	for _, agent := range projectAgents {
-		targets, err := s.resolver.Resolve("", false, agent)
+// collectLinkedSkills resolves agent directories for the given scope and returns
+// skills that are symlinked into them. Only skills with at least one active
+// symlink are included.
+func (s *FileSystemSkillStore) collectLinkedSkills(global bool) []InstalledSkill {
+	agentMap := make(map[string]*InstalledSkill)
+	agents := s.resolver.DetectAgents(global)
+	for _, agent := range agents {
+		targets, err := s.resolver.Resolve("", global, agent)
 		if err != nil || len(targets) == 0 {
 			continue
 		}
@@ -180,7 +168,7 @@ func (s *FileSystemSkillStore) ListInstalled() (project []InstalledSkill, global
 				continue
 			}
 			name := entry.Name()
-			if existing, ok := projectMap[name]; ok {
+			if existing, ok := agentMap[name]; ok {
 				existing.Agents = append(existing.Agents, agent)
 			} else {
 				linkPath := filepath.Join(skillDir, name)
@@ -196,7 +184,7 @@ func (s *FileSystemSkillStore) ListInstalled() (project []InstalledSkill, global
 						desc = fm["description"]
 					}
 				}
-				projectMap[name] = &InstalledSkill{
+				agentMap[name] = &InstalledSkill{
 					Name:        name,
 					Description: desc,
 					Agents:      []string{agent},
@@ -204,11 +192,11 @@ func (s *FileSystemSkillStore) ListInstalled() (project []InstalledSkill, global
 			}
 		}
 	}
-
-	for _, info := range projectMap {
-		project = append(project, *info)
+	var result []InstalledSkill
+	for _, info := range agentMap {
+		result = append(result, *info)
 	}
-	return project, global, nil
+	return result
 }
 
 // ReadProvenance reads the provenance metadata for an installed skill.

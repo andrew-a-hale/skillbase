@@ -18,8 +18,8 @@ type KeyMap struct {
 }
 
 var DefaultKeyMap = KeyMap{
-	Up:      []string{"up", "k"},
-	Down:    []string{"down", "j"},
+	Up:      []string{"up"},
+	Down:    []string{"down"},
 	Left:    []string{"left", "h"},
 	Right:   []string{"right", "l", "enter"},
 	Select:  []string{"space"},

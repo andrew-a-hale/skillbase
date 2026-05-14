@@ -166,7 +166,7 @@ func (m *FindModel) View() tea.View {
 	}
 
 	b.WriteString("\n")
-	b.WriteString(HelpStyle.Render("Type to filter \u2022 j/\u2193 k/\u2191 navigate \u2022 q/esc quit"))
+	b.WriteString(HelpStyle.Render("Type to filter \u2022 \u2193/\u2191 navigate \u2022 q/esc quit"))
 
 	v.SetContent(viewMargin(b.String()))
 	return v

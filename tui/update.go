@@ -126,7 +126,7 @@ func (m *UpdateModel) View() tea.View {
 	}
 
 	b.WriteString("\n")
-	b.WriteString(HelpStyle.Render("j/\u2193 k/\u2191 navigate \u2022 enter/l/\u2192 select \u2022 q/esc quit"))
+	b.WriteString(HelpStyle.Render("\u2193/\u2191 navigate \u2022 enter/l/\u2192 select \u2022 q/esc quit"))
 
 	v.SetContent(viewMargin(b.String()))
 	return v
