@@ -140,6 +140,16 @@ func fetchSkillsFromRepo(repo Repository, clonePath, skillPath string) ([]Skill,
 
 	skill, err := repo.GetSkill(clonePath, skillPath)
 	if err != nil {
+		allSkills, listErr := repo.ListSkills(clonePath)
+		if listErr != nil {
+			return nil, fmt.Errorf("failed to get skill: %w", err)
+		}
+		skillName := filepath.Base(skillPath)
+		for _, s := range allSkills {
+			if s.Name == skillName {
+				return []Skill{s}, nil
+			}
+		}
 		return nil, fmt.Errorf("failed to get skill: %w", err)
 	}
 	return []Skill{skill}, nil
@@ -175,6 +185,9 @@ func removeSkills(store SkillStore, skillNames []string, agent string, global bo
 }
 
 func updateSkill(repo Repository, store SkillStore, source, skillPath string) error {
+	if skillPath == "" || skillPath == "." {
+		return fmt.Errorf("invalid skill path: %q", skillPath)
+	}
 	skillName := filepath.Base(skillPath)
 	if !store.Exists(skillName) {
 		return fmt.Errorf("skill %q not installed", skillName)

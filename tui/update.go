@@ -10,7 +10,9 @@ import (
 type UpdateModel struct {
 	list
 
-	skills []SkillInfo
+	skills          []SkillInfo
+	filter          string
+	filteredIndices []int
 
 	width, height int
 
@@ -20,7 +22,13 @@ type UpdateModel struct {
 }
 
 func NewUpdateModel(skills []SkillInfo) *UpdateModel {
-	return &UpdateModel{skills: skills}
+	m := &UpdateModel{skills: skills}
+	m.buildFilteredIndices()
+	return m
+}
+
+func (m *UpdateModel) buildFilteredIndices() {
+	m.filteredIndices = filteredIndices(m.skills, m.filter)
 }
 
 func (m *UpdateModel) Init() tea.Cmd { return nil }
@@ -46,19 +54,30 @@ func (m *UpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Cancelled = true
 			return m, tea.Quit
 		}
+		filtered := m.filteredIndices
 		switch {
 		case IsKey(msg, DefaultKeyMap.Down):
-			m.down(len(m.skills))
+			m.down(len(filtered))
 		case IsKey(msg, DefaultKeyMap.Up):
-			m.up(len(m.skills))
+			m.up(len(filtered))
 		case IsKey(msg, DefaultKeyMap.Confirm):
-			if len(m.skills) > 0 {
-				m.Result = &UpdateResult{SkillName: m.skills[m.cursor].Name}
+			if len(filtered) > 0 {
+				m.Result = &UpdateResult{SkillName: m.skills[filtered[m.cursor]].Name}
 				return m, tea.Quit
 			}
+		case msg.Code == tea.KeyBackspace:
+			if len(m.filter) > 0 {
+				m.filter = m.filter[:len(m.filter)-1]
+				m.buildFilteredIndices()
+				m.reset()
+			}
+		case len(msg.Text) > 0:
+			m.filter += strings.ToLower(msg.Text)
+			m.buildFilteredIndices()
+			m.reset()
 		}
 	case tea.MouseMsg:
-		m.handleMouse(msg, len(m.skills))
+		m.handleMouse(msg, len(m.filteredIndices))
 	}
 	return m, nil
 }
@@ -77,9 +96,15 @@ func (m *UpdateModel) View() tea.View {
 	b.WriteString(TitleStyle.Render("skillbase update"))
 	b.WriteString("\n")
 	b.WriteString(SubtitleStyle.Render("Select a skill to update"))
+	b.WriteString("\n")
+	b.WriteString(SubtitleStyle.Render(fmt.Sprintf("Filter: %s_", m.filter)))
 	b.WriteString("\n\n")
 
-	for i, skill := range m.skills {
+	for i, origIdx := range m.filteredIndices {
+		if i-m.cursor > 5 || i-m.cursor < -5 {
+			continue
+		}
+		skill := m.skills[origIdx]
 		desc := skill.Description
 		if desc == "" {
 			desc = "(no description)"
@@ -91,8 +116,12 @@ func (m *UpdateModel) View() tea.View {
 		b.WriteString(renderListItem(m.cursor == i, m.width, skill.Name+MutedStyle.Render(agents), desc))
 	}
 
-	if len(m.skills) == 0 {
-		b.WriteString(MutedStyle.Render("No skills installed"))
+	if len(m.filteredIndices) == 0 {
+		if len(m.skills) == 0 {
+			b.WriteString(MutedStyle.Render("No skills installed"))
+		} else {
+			b.WriteString(MutedStyle.Render("No skills match the filter"))
+		}
 		b.WriteString("\n")
 	}
 

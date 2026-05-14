@@ -9,7 +9,7 @@ import (
 func TestUpdateModelConfirm(t *testing.T) {
 	skills := []SkillInfo{{Name: "a"}, {Name: "b"}}
 	m := NewUpdateModel(skills)
-	model, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	model, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = model.(*UpdateModel)
 	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = model.(*UpdateModel)
@@ -26,7 +26,7 @@ func TestUpdateModelConfirm(t *testing.T) {
 
 func TestUpdateModelQuit(t *testing.T) {
 	m := NewUpdateModel([]SkillInfo{{Name: "a"}})
-	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	model, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	m = model.(*UpdateModel)
 	if cmd == nil {
 		t.Fatal("expected quit cmd")

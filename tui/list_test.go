@@ -19,7 +19,7 @@ func TestListModelAllSkills(t *testing.T) {
 
 func TestListModelQuit(t *testing.T) {
 	m := NewListModel(nil, nil)
-	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	model, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	m = model.(*ListModel)
 	if cmd == nil {
 		t.Fatal("expected quit cmd")

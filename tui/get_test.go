@@ -73,7 +73,7 @@ func TestGetModelSkillConfirm(t *testing.T) {
 	m.loading = false
 	m.applyPreselections()
 
-	model, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	model, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = model.(*GetModel)
 	model, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = model.(*GetModel)
@@ -103,7 +103,7 @@ func TestGetModelSkillMultiSelect(t *testing.T) {
 	}
 
 	// Move to skill b and select it
-	model, _ = m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	model, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = model.(*GetModel)
 	model, _ = m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
 	m = model.(*GetModel)
@@ -112,7 +112,7 @@ func TestGetModelSkillMultiSelect(t *testing.T) {
 	}
 
 	// Move to skill c but don't select it
-	model, _ = m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	model, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = model.(*GetModel)
 
 	// Confirm should advance with a and b selected
@@ -147,13 +147,13 @@ func TestGetModelScopeToggle(t *testing.T) {
 	m.loading = false
 	m.applyPreselections()
 
-	model, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	model, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = model.(*GetModel)
 	if !m.global {
 		t.Fatal("expected global true after toggle")
 	}
 
-	model, _ = m.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
+	model, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 	m = model.(*GetModel)
 	if m.global {
 		t.Fatal("expected global false after toggle back")
@@ -181,7 +181,7 @@ func TestGetModelScopeConfirmGlobal(t *testing.T) {
 	m.loading = false
 	m.applyPreselections()
 
-	model, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	model, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = model.(*GetModel)
 	model, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = model.(*GetModel)
@@ -209,7 +209,7 @@ func TestGetModelAgentSelect(t *testing.T) {
 		t.Fatal("expected claude selected")
 	}
 
-	model, _ = m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	model, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = model.(*GetModel)
 	model, _ = m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
 	m = model.(*GetModel)
@@ -291,7 +291,7 @@ func TestGetModelBack(t *testing.T) {
 	m.applyPreselections()
 	m.step = getStepScope
 
-	model, _ := m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
+	model, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	m = model.(*GetModel)
 	if m.step != getStepSkill {
 		t.Fatalf("expected step skill, got %d", m.step)
@@ -303,7 +303,7 @@ func TestGetModelQuit(t *testing.T) {
 	m.skills = []SkillInfo{{Name: "a"}}
 	m.loading = false
 	m.applyPreselections()
-	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	model, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	m = model.(*GetModel)
 	if cmd == nil {
 		t.Fatal("expected quit cmd")

@@ -44,5 +44,5 @@ var (
 
 	// ViewStyle wraps entire TUI views with horizontal margins.
 	ViewStyle = lipgloss.NewStyle().
-			Padding(0, 4)
+			Padding(0, 4, 0, 0)
 )

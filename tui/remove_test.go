@@ -25,7 +25,7 @@ func TestNewRemoveModelPreGlobal(t *testing.T) {
 
 func TestRemoveModelScopeToggle(t *testing.T) {
 	m := NewRemoveModel([]string{"g1"}, []SkillInfo{{Name: "p1"}}, false, "")
-	model, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	model, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = model.(*RemoveModel)
 	if !m.global {
 		t.Fatal("expected global true")
@@ -34,7 +34,7 @@ func TestRemoveModelScopeToggle(t *testing.T) {
 
 func TestRemoveModelSkillSelect(t *testing.T) {
 	m := NewRemoveModel([]string{"g1", "g2"}, []SkillInfo{{Name: "p1"}}, true, "")
-	model, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	model, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = model.(*RemoveModel)
 	model, _ = m.Update(tea.KeyPressMsg{Code: ' ', Text: " "})
 	m = model.(*RemoveModel)
@@ -65,7 +65,7 @@ func TestRemoveModelConfirm(t *testing.T) {
 func TestRemoveModelBack(t *testing.T) {
 	m := NewRemoveModel([]string{"g1"}, []SkillInfo{{Name: "p1"}}, true, "")
 	m.step = removeStepSkills
-	model, _ := m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
+	model, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	m = model.(*RemoveModel)
 	if m.step != removeStepScope {
 		t.Fatalf("expected step scope, got %d", m.step)
@@ -74,7 +74,7 @@ func TestRemoveModelBack(t *testing.T) {
 
 func TestRemoveModelQuit(t *testing.T) {
 	m := NewRemoveModel(nil, nil, false, "")
-	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	model, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	m = model.(*RemoveModel)
 	if cmd == nil {
 		t.Fatal("expected quit cmd")

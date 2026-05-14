@@ -250,7 +250,7 @@ func (s *FileSystemSkillStore) resolveTargetAgents(agent string, global bool) ([
 	}
 	agents := s.resolver.DetectAgents(false)
 	if len(agents) == 0 {
-		return nil, fmt.Errorf("no agent scopes detected; use -a or -g")
+		return nil, fmt.Errorf("no agent scopes detected; no .agents or .claude directory found")
 	}
 	return agents, nil
 }

@@ -9,6 +9,29 @@ import (
 	"github.com/muesli/reflow/wordwrap"
 )
 
+// filteredIndices returns the indices of skills whose Name, Path, or Description
+// contains the given filter (case-insensitive). If filter is empty, all indices
+// are returned in order.
+func filteredIndices(skills []SkillInfo, filter string) []int {
+	if filter == "" {
+		indices := make([]int, len(skills))
+		for i := range skills {
+			indices[i] = i
+		}
+		return indices
+	}
+	f := strings.ToLower(filter)
+	var indices []int
+	for i, s := range skills {
+		if strings.Contains(strings.ToLower(s.Name), f) ||
+			strings.Contains(strings.ToLower(s.Path), f) ||
+			strings.Contains(strings.ToLower(s.Description), f) {
+			indices = append(indices, i)
+		}
+	}
+	return indices
+}
+
 // list provides reusable cursor navigation.
 // Embed it in a model and call its methods from Update.
 type list struct {

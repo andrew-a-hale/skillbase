@@ -31,6 +31,9 @@ type RemoveModel struct {
 	preGlobal bool
 	preAgent  string
 
+	filter          string
+	filteredIndices []int
+
 	width, height int
 
 	Result    *RemoveResult
@@ -53,9 +56,14 @@ func NewRemoveModel(globalSkills []string, projectSkills []SkillInfo, preGlobal 
 	if preGlobal {
 		m.global = true
 		m.step = removeStepSkills
+		m.buildFilteredIndices()
 	}
 
 	return m
+}
+
+func (m *RemoveModel) buildFilteredIndices() {
+	m.filteredIndices = filteredIndices(m.currentItems(), m.filter)
 }
 
 func (m *RemoveModel) Init() tea.Cmd { return nil }
@@ -106,20 +114,24 @@ func (m *RemoveModel) updateScopeStep(msg tea.KeyPressMsg) {
 	case IsKey(msg, DefaultKeyMap.Up), IsKey(msg, DefaultKeyMap.Down):
 		m.global = !m.global
 	case IsKey(msg, DefaultKeyMap.Confirm):
+		m.buildFilteredIndices()
 		m.step = removeStepSkills
 		m.reset()
 	}
 }
 
 func (m *RemoveModel) updateSkillsStep(msg tea.KeyPressMsg) {
-	items := m.currentItems()
+	filtered := m.filteredIndices
 	switch {
 	case IsKey(msg, DefaultKeyMap.Down):
-		m.down(len(items))
+		m.down(len(filtered))
 	case IsKey(msg, DefaultKeyMap.Up):
-		m.up(len(items))
+		m.up(len(filtered))
 	case IsKey(msg, DefaultKeyMap.Select):
-		m.selected[m.cursor] = !m.selected[m.cursor]
+		if len(filtered) > 0 {
+			origIdx := filtered[m.cursor]
+			m.selected[origIdx] = !m.selected[origIdx]
+		}
 	case IsKey(msg, DefaultKeyMap.Confirm):
 		hasSelected := false
 		for _, v := range m.selected {
@@ -131,6 +143,16 @@ func (m *RemoveModel) updateSkillsStep(msg tea.KeyPressMsg) {
 		if hasSelected {
 			m.step = removeStepConfirm
 		}
+	case msg.Code == tea.KeyBackspace:
+		if len(m.filter) > 0 {
+			m.filter = m.filter[:len(m.filter)-1]
+			m.buildFilteredIndices()
+			m.reset()
+		}
+	case len(msg.Text) > 0:
+		m.filter += strings.ToLower(msg.Text)
+		m.buildFilteredIndices()
+		m.reset()
 	}
 }
 
@@ -166,7 +188,7 @@ func (m *RemoveModel) currentItems() []SkillInfo {
 
 func (m *RemoveModel) handleMouse(msg tea.MouseMsg) {
 	if m.step == removeStepSkills {
-		m.list.handleMouse(msg, len(m.currentItems()))
+		m.list.handleMouse(msg, len(m.filteredIndices))
 	}
 }
 
@@ -212,11 +234,14 @@ func (m *RemoveModel) View() tea.View {
 			scope = "global"
 		}
 		b.WriteString(SubtitleStyle.Render(fmt.Sprintf("Select skills to remove from %s scope", scope)))
+		b.WriteString("\n")
+		b.WriteString(SubtitleStyle.Render(fmt.Sprintf("Filter: %s_", m.filter)))
 		b.WriteString("\n\n")
 		items := m.currentItems()
-		for i, item := range items {
+		for i, origIdx := range m.filteredIndices {
+			item := items[origIdx]
 			checked := "[ ] "
-			if m.selected[i] {
+			if m.selected[origIdx] {
 				checked = "[x] "
 			}
 			agents := ""

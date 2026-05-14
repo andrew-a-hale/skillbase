@@ -89,7 +89,7 @@ func TestFindModelNavigationWithFilter(t *testing.T) {
 	m.filter = "b"
 	m.cursor = 0
 
-	model, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	model, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = model.(*FindModel)
 	if m.cursor != 0 {
 		t.Fatalf("expected cursor 0 (only 1 match), got %d", m.cursor)
@@ -100,7 +100,7 @@ func TestFindModelQuit(t *testing.T) {
 	m := NewFindModel("")
 	m.skills = []SkillInfo{{Name: "a"}}
 	m.loading = false
-	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	model, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	m = model.(*FindModel)
 	if cmd == nil {
 		t.Fatal("expected quit cmd")

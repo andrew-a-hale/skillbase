@@ -27,7 +27,7 @@ type FindModel struct {
 }
 
 func NewFindModel(filter string) *FindModel {
-	s := spinner.New(spinner.WithSpinner(spinner.Dot))
+	s := spinner.New(spinner.WithSpinner(spinner.Ellipsis))
 	s.Style = TitleStyle
 	w, h, _ := term.GetSize(int(os.Stdout.Fd()))
 	return &FindModel{
@@ -45,18 +45,12 @@ func (m *FindModel) WithLoadCmd(cmd tea.Cmd) *FindModel {
 }
 
 func (m *FindModel) filteredSkills() []SkillInfo {
-	if m.filter == "" {
-		return m.skills
+	indices := filteredIndices(m.skills, m.filter)
+	result := make([]SkillInfo, len(indices))
+	for i, idx := range indices {
+		result[i] = m.skills[idx]
 	}
-	var filtered []SkillInfo
-	for _, s := range m.skills {
-		if strings.Contains(strings.ToLower(s.Name), m.filter) ||
-			strings.Contains(strings.ToLower(s.Path), m.filter) ||
-			strings.Contains(strings.ToLower(s.Description), m.filter) {
-			filtered = append(filtered, s)
-		}
-	}
-	return filtered
+	return result
 }
 
 func (m *FindModel) Init() tea.Cmd {
@@ -137,8 +131,7 @@ func (m *FindModel) View() tea.View {
 
 	if m.loading {
 		var b strings.Builder
-		b.WriteString("\n")
-		b.WriteString(viewMargin(m.spinner.View()) + "Pulling Repository...")
+		b.WriteString(fmt.Sprintf("Pulling Repository%s", m.spinner.View()))
 		v.SetContent(b.String())
 		return v
 	}

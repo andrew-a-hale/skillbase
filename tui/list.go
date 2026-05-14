@@ -12,8 +12,11 @@ import (
 type ListModel struct {
 	list
 
-	projectSkills []SkillInfo
-	globalSkills  []SkillInfo
+	projectSkills         []SkillInfo
+	globalSkills          []SkillInfo
+	filter                string
+	filteredProjectSkills []SkillInfo
+	filteredGlobalSkills  []SkillInfo
 
 	width, height int
 
@@ -23,11 +26,38 @@ type ListModel struct {
 
 func NewListModel(projectSkills, globalSkills []SkillInfo) *ListModel {
 	w, h, _ := term.GetSize(int(os.Stdout.Fd()))
-	return &ListModel{
+	m := &ListModel{
 		projectSkills: projectSkills,
 		globalSkills:  globalSkills,
 		width:         w - 4,
 		height:        h,
+	}
+	m.buildFiltered()
+	return m
+}
+
+func (m *ListModel) buildFiltered() {
+	m.filteredProjectSkills = nil
+	m.filteredGlobalSkills = nil
+	if m.filter == "" {
+		m.filteredProjectSkills = append([]SkillInfo(nil), m.projectSkills...)
+		m.filteredGlobalSkills = append([]SkillInfo(nil), m.globalSkills...)
+		return
+	}
+	f := strings.ToLower(m.filter)
+	for _, s := range m.projectSkills {
+		if strings.Contains(strings.ToLower(s.Name), f) ||
+			strings.Contains(strings.ToLower(s.Path), f) ||
+			strings.Contains(strings.ToLower(s.Description), f) {
+			m.filteredProjectSkills = append(m.filteredProjectSkills, s)
+		}
+	}
+	for _, s := range m.globalSkills {
+		if strings.Contains(strings.ToLower(s.Name), f) ||
+			strings.Contains(strings.ToLower(s.Path), f) ||
+			strings.Contains(strings.ToLower(s.Description), f) {
+			m.filteredGlobalSkills = append(m.filteredGlobalSkills, s)
+		}
 	}
 }
 
@@ -54,15 +84,25 @@ func (m *ListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Cancelled = true
 			return m, tea.Quit
 		}
-		all := m.allSkills()
+		allCount := len(m.filteredProjectSkills) + len(m.filteredGlobalSkills)
 		switch {
 		case IsKey(msg, DefaultKeyMap.Down):
-			m.down(len(all))
+			m.down(allCount)
 		case IsKey(msg, DefaultKeyMap.Up):
-			m.up(len(all))
+			m.up(allCount)
+		case msg.Code == tea.KeyBackspace:
+			if len(m.filter) > 0 {
+				m.filter = m.filter[:len(m.filter)-1]
+				m.buildFiltered()
+				m.reset()
+			}
+		case len(msg.Text) > 0:
+			m.filter += strings.ToLower(msg.Text)
+			m.buildFiltered()
+			m.reset()
 		}
 	case tea.MouseMsg:
-		m.handleMouse(msg, len(m.allSkills()))
+		m.handleMouse(msg, len(m.filteredProjectSkills)+len(m.filteredGlobalSkills))
 	}
 	return m, nil
 }
@@ -76,13 +116,19 @@ func (m *ListModel) View() tea.View {
 
 	var b strings.Builder
 	b.WriteString(TitleStyle.Render("skillbase list"))
+	b.WriteString("\n")
+	b.WriteString(SubtitleStyle.Render(fmt.Sprintf("Filter: %s_", m.filter)))
 	b.WriteString("\n\n")
 
 	cursor := 0
-	if len(m.projectSkills) > 0 {
+	if len(m.filteredProjectSkills) > 0 {
 		b.WriteString(SubtitleStyle.Render("Project Scope"))
 		b.WriteString("\n")
-		for _, skill := range m.projectSkills {
+		for _, skill := range m.filteredProjectSkills {
+			if cursor-m.cursor > 5 || cursor-m.cursor < -5 {
+				cursor++
+				continue
+			}
 			selected := m.cursor == cursor
 			agents := ""
 			if len(skill.Agents) > 0 {
@@ -98,12 +144,13 @@ func (m *ListModel) View() tea.View {
 		b.WriteString("\n")
 	}
 
-	if len(m.globalSkills) > 0 {
+	if len(m.filteredGlobalSkills) > 0 {
 		b.WriteString(SubtitleStyle.Render("Global Scope"))
 		b.WriteString("\n")
-		for i, skill := range m.globalSkills {
-			if i-m.cursor > 5 || i-m.cursor < -5 {
-				continue // skip
+		for _, skill := range m.filteredGlobalSkills {
+			if cursor-m.cursor > 5 || cursor-m.cursor < -5 {
+				cursor++
+				continue
 			}
 
 			selected := m.cursor == cursor
@@ -118,6 +165,9 @@ func (m *ListModel) View() tea.View {
 
 	if len(m.projectSkills) == 0 && len(m.globalSkills) == 0 {
 		b.WriteString(MutedStyle.Render("No skills installed"))
+		b.WriteString("\n")
+	} else if len(m.filteredProjectSkills) == 0 && len(m.filteredGlobalSkills) == 0 {
+		b.WriteString(MutedStyle.Render("No skills match the filter"))
 		b.WriteString("\n")
 	}
 

@@ -42,6 +42,9 @@ type GetModel struct {
 	loadCmd   tea.Cmd
 	clonePath string
 
+	filter          string
+	filteredIndices []int
+
 	width, height int
 
 	Result    *GetResult
@@ -50,7 +53,7 @@ type GetModel struct {
 }
 
 func NewGetModel(preSkill, preAgent string, preGlobal bool, detectedAgents []string) *GetModel {
-	s := spinner.New(spinner.WithSpinner(spinner.Dot))
+	s := spinner.New(spinner.WithSpinner(spinner.Ellipsis))
 	s.Style = TitleStyle
 	w, h, _ := term.GetSize(int(os.Stdout.Fd()))
 	m := &GetModel{
@@ -74,6 +77,10 @@ func NewGetModel(preSkill, preAgent string, preGlobal bool, detectedAgents []str
 func (m *GetModel) WithLoadCmd(cmd tea.Cmd) *GetModel {
 	m.loadCmd = cmd
 	return m
+}
+
+func (m *GetModel) buildFilteredIndices() {
+	m.filteredIndices = filteredIndices(m.skills, m.filter)
 }
 
 func (m *GetModel) applyPreselections() {
@@ -107,6 +114,8 @@ func (m *GetModel) applyPreselections() {
 			m.step = getStepConfirm
 		}
 	}
+
+	m.buildFilteredIndices()
 }
 
 func (m *GetModel) Init() tea.Cmd {
@@ -185,19 +194,21 @@ func (m *GetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *GetModel) updateSkillStep(msg tea.KeyPressMsg) {
+	filtered := m.filteredIndices
 	switch {
 	case IsKey(msg, DefaultKeyMap.Down):
-		m.down(len(m.skills))
+		m.down(len(filtered))
 	case IsKey(msg, DefaultKeyMap.Up):
-		m.up(len(m.skills))
+		m.up(len(filtered))
 	case IsKey(msg, DefaultKeyMap.Select):
-		if !m.singleMode {
-			m.selectedSkills[m.cursor] = !m.selectedSkills[m.cursor]
+		if !m.singleMode && len(filtered) > 0 {
+			origIdx := filtered[m.cursor]
+			m.selectedSkills[origIdx] = !m.selectedSkills[origIdx]
 		}
 	case IsKey(msg, DefaultKeyMap.Confirm):
 		if m.singleMode {
-			if len(m.skills) > 0 {
-				m.selectedSkill = m.cursor
+			if len(filtered) > 0 {
+				m.selectedSkill = filtered[m.cursor]
 				m.step = getStepScope
 				m.reset()
 			}
@@ -209,13 +220,24 @@ func (m *GetModel) updateSkillStep(msg tea.KeyPressMsg) {
 					break
 				}
 			}
-			if !hasSelected && len(m.skills) > 0 {
-				m.selectedSkills[m.cursor] = true
-				m.selectedSkill = m.cursor
+			if !hasSelected && len(filtered) > 0 {
+				origIdx := filtered[m.cursor]
+				m.selectedSkills[origIdx] = true
+				m.selectedSkill = origIdx
 			}
 			m.step = getStepScope
 			m.reset()
 		}
+	case msg.Code == tea.KeyBackspace:
+		if len(m.filter) > 0 {
+			m.filter = m.filter[:len(m.filter)-1]
+			m.buildFilteredIndices()
+			m.reset()
+		}
+	case len(msg.Text) > 0:
+		m.filter += strings.ToLower(msg.Text)
+		m.buildFilteredIndices()
+		m.reset()
 	}
 }
 
@@ -320,7 +342,7 @@ func (m *GetModel) handleMouse(msg tea.MouseMsg) {
 	count := 0
 	switch m.step {
 	case getStepSkill:
-		count = len(m.skills)
+		count = len(m.filteredIndices)
 	case getStepScope:
 		count = 2
 	case getStepAgent:
@@ -336,7 +358,7 @@ func (m *GetModel) View() tea.View {
 
 	if m.loading {
 		var b strings.Builder
-		b.WriteString(viewMargin(m.spinner.View()))
+		b.WriteString("Pulling Repository" + m.spinner.View())
 		v.SetContent(b.String())
 		return v
 	}
@@ -353,12 +375,15 @@ func (m *GetModel) View() tea.View {
 	switch m.step {
 	case getStepSkill:
 		b.WriteString(SubtitleStyle.Render("Select skills to install"))
+		b.WriteString("\n")
+		b.WriteString(SubtitleStyle.Render(fmt.Sprintf("Filter: %s_", m.filter)))
 		b.WriteString("\n\n")
-		for i, skill := range m.skills {
+		for i, origIdx := range m.filteredIndices {
 			if i-m.cursor > 5 || i-m.cursor < -5 {
-				continue // skip
+				continue
 			}
 
+			skill := m.skills[origIdx]
 			desc := skill.Description
 			if desc == "" {
 				desc = "(no description)"
@@ -367,11 +392,16 @@ func (m *GetModel) View() tea.View {
 				b.WriteString(renderListItem(m.cursor == i, m.width, skill.Name, desc))
 			} else {
 				checked := "[ ] "
-				if m.selectedSkills[i] {
+				if m.selectedSkills[origIdx] {
 					checked = "[x] "
 				}
 				b.WriteString(renderListItem(m.cursor == i, m.width, checked+skill.Name, desc))
 			}
+		}
+
+		if len(m.filteredIndices) == 0 {
+			b.WriteString(MutedStyle.Render("No skills match the filter"))
+			b.WriteString("\n")
 		}
 
 	case getStepScope:

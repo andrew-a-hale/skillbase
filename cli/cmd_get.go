@@ -63,16 +63,26 @@ func cmdGet(args []string) error {
 		return getSkill(repo, store, repoURL, skillPath, []string{*agent}, *global)
 	}
 
+	var cloneCleanup func() error
+	defer func() {
+		if cloneCleanup != nil {
+			_ = cloneCleanup()
+		}
+	}()
+
 	loadCmd := func() tea.Msg {
 		ctx := context.Background()
 		clonePath, cleanup, err := repo.Clone(ctx)
 		if err != nil {
 			return tui.LoadMsg{Err: fmt.Errorf("failed to clone: %w", err)}
 		}
-		defer func() { _ = cleanup() }()
+		cloneCleanup = cleanup
 
 		skills, err := repo.ListSkills(clonePath)
 		if err != nil {
+			// BUG: Do not call cleanup() here. cloneCleanup is already set to cleanup
+			// and the deferred function in the outer scope will invoke it. Calling it
+			// explicitly would result in a double-close/panic.
 			return tui.LoadMsg{Err: fmt.Errorf("failed to list skills: %w", err)}
 		}
 
